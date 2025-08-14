@@ -1,0 +1,8 @@
+GO_BINARIES = \
+    src/cmd/mcctl
+    src/cmd/manager
+
+build: $(GO_BINARIES)
+
+clean-go-binaries:
+    rm -f $(GO_BINARIES)

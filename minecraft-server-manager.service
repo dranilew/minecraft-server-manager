@@ -1,0 +1,13 @@
+[Unit]
+Description=Minecraft server manager
+After=network-online.target syslog.service
+After=network.service networking.service NetworkManager.service systemd-networkd.service
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/minecraft-server-manager
+Restart=always
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

@@ -93,15 +93,21 @@ func handleStatus() error {
 	for _, srv := range runningServers {
 		common.ServerStatusesMu.Lock()
 		s, ok := common.ServerStatuses[srv]
-		common.ServerStatusesMu.Unlock()
 		if !ok {
+			common.ServerStatusesMu.Unlock()
 			continue
 		}
 		online, err := status.Online(ctx, uint16(s.Port))
 		if err != nil {
+			if time.Since(s.StartTime) < time.Minute {
+				common.ServerStatusesMu.Unlock()
+				continue
+			}
+			common.ServerStatusesMu.Unlock()
 			log.Printf("Error fetching %q server status: %v", srv, err)
 			continue
 		}
+		common.ServerStatusesMu.Unlock()
 		if online > 0 {
 			common.BackupStatusesMu.Lock()
 			common.BackupStatuses[srv] = true

@@ -187,6 +187,8 @@ func Start(ctx context.Context, servers ...string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get running servers: %v", err)
 	}
+
+	var started bool
 	for _, server := range servers {
 		log.Printf("Starting server %q", server)
 		if slices.Contains(runningServers, server) {
@@ -194,6 +196,7 @@ func Start(ctx context.Context, servers ...string) error {
 			continue
 		}
 
+		started = true
 		log.Printf("%q: Determining port for server...", server)
 		port, isNew := determinePort(server)
 		common.ServerStatusesMu.Lock()
@@ -234,8 +237,10 @@ func Start(ctx context.Context, servers ...string) error {
 		}
 		log.Printf("Started server %q", server)
 	}
-	if err := common.UpdateServerStatus(); err != nil {
-		return fmt.Errorf("Failed to update server status: %v", err)
+	if started {
+		if err := common.UpdateServerStatus(); err != nil {
+			return fmt.Errorf("Failed to update server status: %v", err)
+		}
 	}
 
 	return nil
@@ -247,6 +252,7 @@ func Stop(ctx context.Context, servers ...string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get currently running servers")
 	}
+	var stopped bool
 	var wg sync.WaitGroup
 	for _, server := range servers {
 		// Stop/kill each specified server in their own go routines.
@@ -257,6 +263,7 @@ func Stop(ctx context.Context, servers ...string) error {
 			if !slices.Contains(runningServers, server) {
 				return
 			}
+			stopped = true
 			common.ServerStatusesMu.Lock()
 			common.ServerStatuses[server].ShouldRun = false
 			common.ServerStatusesMu.Unlock()
@@ -307,8 +314,10 @@ func Stop(ctx context.Context, servers ...string) error {
 		}()
 	}
 	wg.Wait()
-	if err := common.UpdateServerStatus(); err != nil {
-		return fmt.Errorf("failed to update server status: %v", err)
+	if stopped {
+		if err := common.UpdateServerStatus(); err != nil {
+			return fmt.Errorf("failed to update server status: %v", err)
+		}
 	}
 	return nil
 }

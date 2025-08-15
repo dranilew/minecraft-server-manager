@@ -110,43 +110,34 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 // copyToZip recurses through all files from baseDir and adds them to the zip file.
 func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 	var errs []error
-	var errsMu sync.Mutex
-	var addError = func(err error) {
-		if err != nil {
-			errsMu.Lock()
-			errs = append(errs, err)
-			errsMu.Unlock()
-		}
-	}
 
+	// Read all files in the directory.
 	files, err := os.ReadDir(filepath.Join(baseDir, relativeDir))
 	if err != nil {
-		addError(err)
+		errs = append(errs, err)
 	}
 
-	// Add each file in their own goroutines.
+	// Zip files cannot be created concurrently.
 	for _, file := range files {
-		// Recurse if it's a directory. Run these in a separate
+		// Recurse if it's a directory.
 		if file.IsDir() {
-			go addError(copyToZip(zipWriter, baseDir, filepath.Join(relativeDir, file.Name())))
+			errs = append(errs, copyToZip(zipWriter, baseDir, filepath.Join(relativeDir, file.Name())))
 		}
 
-		go func() {
-			// Copy all non-directory files.
-			zipLoc := filepath.Join(relativeDir, file.Name())
-			zipFile, err := zipWriter.Create(zipLoc)
-			if err != nil {
-				addError(err)
-			}
-			copyFile, err := os.Open(filepath.Join(baseDir, relativeDir, file.Name()))
-			if err != nil {
-				addError(err)
-			}
-			if _, err := io.Copy(zipFile, copyFile); err != nil {
-				addError(err)
-			}
-			copyFile.Close()
-		}()
+		// Copy all non-directory files.
+		zipLoc := filepath.Join(relativeDir, file.Name())
+		zipFile, err := zipWriter.Create(zipLoc)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		copyFile, err := os.Open(filepath.Join(baseDir, relativeDir, file.Name()))
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if _, err := io.Copy(zipFile, copyFile); err != nil {
+			errs = append(errs, err)
+		}
+		copyFile.Close()
 	}
 	return errors.Join(errs...)
 }

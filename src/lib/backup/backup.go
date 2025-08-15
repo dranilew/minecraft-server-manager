@@ -86,7 +86,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	}
 
 	// Upload to the storage bucket if a URL is provided.
-	if err := exec.Command("gcloud", "storage", "cp", backupFile, fmt.Sprintf("gs://%s/%s/%s", dest, srv, backupName(srv))).Run(); err != nil {
+	if err := exec.Command("gcloud", "storage", "cp", backupFile, fmt.Sprintf("%s/%s/%s", dest, srv, backupName(srv))).Run(); err != nil {
 		return fmt.Errorf("failed to upload %q to %q: %v", backupFile, dest, err)
 	}
 	if err := os.Remove(backupFile); err != nil {
@@ -120,6 +120,7 @@ func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 	// Zip files cannot be created concurrently.
 	for _, file := range files {
 		// Recurse if it's a directory.
+		fmt.Printf("File: %v", filepath.Join(relativeDir, file.Name()))
 		if file.IsDir() {
 			errs = append(errs, copyToZip(zipWriter, baseDir, filepath.Join(relativeDir, file.Name())))
 			continue // Don't add directories to the zip file.

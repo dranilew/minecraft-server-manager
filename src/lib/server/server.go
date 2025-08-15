@@ -286,7 +286,7 @@ func Stop(ctx context.Context, servers ...string) error {
 					server,
 					"-X",
 					"stuff",
-					`"stop^M"`,
+					"stop^M",
 				},
 				OutputType: run.OutputCombined,
 				ExecMode:   run.ExecModeDetach,

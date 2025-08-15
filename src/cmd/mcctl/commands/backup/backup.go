@@ -81,11 +81,12 @@ func backupInfo(*cobra.Command, []string) error {
 	var result []string
 	result = append(result, "NAME\tENABLED")
 
+	// status represents an entry in the BackupStatuses map.
 	type status struct {
 		name    string
 		enabled bool
 	}
-
+	// Marshal the map into a slice of status structs for sorting.
 	var statuses []*status
 	common.BackupStatusesMu.Lock()
 	for k, v := range common.BackupStatuses {
@@ -93,7 +94,7 @@ func backupInfo(*cobra.Command, []string) error {
 	}
 	common.BackupStatusesMu.Unlock()
 
-	// Sort the statuses
+	// Sort the statuses by server name.
 	slices.SortFunc(statuses, func(a *status, b *status) int {
 		return cmp.Compare(a.name, b.name)
 	})

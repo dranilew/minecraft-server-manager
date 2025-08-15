@@ -85,6 +85,7 @@ func serverInfo(*cobra.Command, []string) error {
 	var result []string
 	result = append(result, "NAME\tPORT\tSHOULDRUN\tSTARTTIME")
 
+	// Get the slice of all server statuses.
 	var statuses []*common.ServerStatus
 	common.ServerStatusesMu.Lock()
 	for _, v := range common.ServerStatuses {
@@ -92,7 +93,7 @@ func serverInfo(*cobra.Command, []string) error {
 	}
 	common.ServerStatusesMu.Unlock()
 
-	// Sort the statuses
+	// Sort the statuses by their port number.
 	slices.SortFunc(statuses, func(a *common.ServerStatus, b *common.ServerStatus) int {
 		return a.Port - b.Port
 	})

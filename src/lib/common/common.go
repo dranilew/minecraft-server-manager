@@ -71,6 +71,7 @@ func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 		}
 		return nil
 	}
+	log.Printf("Got contents %s", string(contentBytes))
 	if err := json.Unmarshal(contentBytes, &statusMap); err != nil {
 		return fmt.Errorf("failed to unmarshal %s file: %w", file, err)
 	}

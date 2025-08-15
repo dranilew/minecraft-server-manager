@@ -214,6 +214,7 @@ func Start(ctx context.Context, servers ...string) error {
 			log.Printf("Got port %d for server %q", port, server)
 		}
 		common.ServerStatuses[server].ShouldRun = true
+		common.ServerStatuses[server].StartTime = time.Now()
 		common.ServerStatusesMu.Unlock()
 
 		// Start the server.
@@ -263,9 +264,12 @@ func Stop(ctx context.Context, servers ...string) error {
 			if !slices.Contains(runningServers, server) {
 				return
 			}
+
+			// Server shouldn't run anymore. Reset start time.
 			stopped = true
 			common.ServerStatusesMu.Lock()
 			common.ServerStatuses[server].ShouldRun = false
+			common.ServerStatuses[server].StartTime = time.Time{}
 			common.ServerStatusesMu.Unlock()
 
 			// Attempt to stop the server naturally.

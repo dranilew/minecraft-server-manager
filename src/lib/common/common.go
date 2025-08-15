@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 func init() {
@@ -24,6 +25,8 @@ type ServerStatus struct {
 	ShouldRun bool `json:"should-run"`
 	// Port is the port that the server is using.
 	Port int `json:"port"`
+	// StartTime is the time the server started.
+	StartTime time.Time
 }
 
 const (

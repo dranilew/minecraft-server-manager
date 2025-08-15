@@ -11,7 +11,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
 	"github.com/dranilew/minecraft-server-manager/src/lib/monitor"
 	"github.com/dranilew/minecraft-server-manager/src/lib/run"
@@ -98,7 +97,7 @@ func handleStatus() error {
 			common.BackupStatusesMu.Unlock()
 		}
 	}
-	if err := backup.WriteBackupStatus(); err != nil {
+	if err := common.UpdateBackupStatus(); err != nil {
 		return fmt.Errorf("Failed to update backup status: %v", err)
 	}
 	return nil

@@ -107,6 +107,31 @@ func Notify(ctx context.Context, server string, message string) error {
 	return nil
 }
 
+func ForceSave(ctx context.Context, server string) error {
+	runningServers, err := GetRunningServers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get running servers: %v", err)
+	}
+	if !slices.Contains(runningServers, server) {
+		log.Printf("Server %q is not running, skipping notification", server)
+	}
+	opts := run.Options{
+		Name: "screen",
+		Args: []string{
+			"-S",
+			server,
+			"-X",
+			"stuff",
+			fmt.Sprintf("/save-all^M"),
+		},
+		OutputType: run.OutputNone,
+	}
+	if _, err := run.WithContext(ctx, opts); err != nil {
+		return fmt.Errorf("failed to force-save server %q: %v", server, err)
+	}
+	return nil
+}
+
 // determinePort determines the port to use for the server.
 // The boolean indicates whether the server is a new server.
 func determinePort(server string) (int, bool) {

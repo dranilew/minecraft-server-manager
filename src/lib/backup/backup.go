@@ -67,8 +67,11 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	worldDir := filepath.Join(common.ServerDirectory(srv), "world")
 	currTime := time.Now().Format(time.RFC3339)
 
-	// Create a temporary file for zipping
+	// Force save the server, and notify about the backup.
 	server.Notify(ctx, srv, "Creating backup...")
+	server.ForceSave(ctx, srv)
+
+	// Create a temporary file for zipping
 	zipFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.zip", srv)) // Temporary directory to store the zip file.
 	if err != nil {
 		return fmt.Errorf("failed to create zip file %q: %v", zipFile.Name(), err)

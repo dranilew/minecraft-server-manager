@@ -24,6 +24,7 @@ type BackupStatus struct {
 	enabledMu sync.Mutex `json:"-"`
 }
 
+// ServerStatus represents the status of a server.
 type ServerStatus struct {
 	// Name is the name of the server/modpack.
 	Name string

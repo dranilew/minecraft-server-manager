@@ -4,7 +4,6 @@ package backup
 import (
 	"archive/zip"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -23,25 +22,13 @@ import (
 // dest is the destination Google Cloud storage location.
 func Create(ctx context.Context, force bool, dest string, servers ...string) error {
 	var errs []error
+	var errsMu sync.Mutex
 	for _, srv := range servers {
-		common.BackupStatusesMu.Lock()
-		if force || common.BackupStatuses[srv].Enabled {
-			common.BackupStatusesMu.Unlock()
-			if err := createBackup(ctx, srv, dest); err != nil {
-				errs = append(errs, err)
-			}
-
-			// If no one is online, then stop doing backups. We assume that the server is also
-			// not running when Online returns an error.
-			online, _ := status.Online(ctx, uint16(common.ServerStatuses[srv].Port))
-			if online == 0 {
-				common.BackupStatusesMu.Lock()
-				common.BackupStatuses[srv].Enabled = false
-				common.BackupStatusesMu.Unlock()
-			}
-		} else {
-			common.BackupStatusesMu.Unlock()
-		}
+		go func() {
+			errsMu.Lock()
+			defer errsMu.Unlock()
+			errs = append(errs, createBackup(ctx, force, srv, dest))
+		}()
 	}
 	return errors.Join(errs...)
 }
@@ -51,8 +38,18 @@ func backupName(server string) string {
 	return fmt.Sprintf("%s-backup.zip", server)
 }
 
+// shouldBackup indicates whether the given server should be backed up.
+func shouldBackup(force bool, srv string) bool {
+	common.BackupStatusesMu.Lock()
+	defer common.BackupStatusesMu.Unlock()
+	return force || common.BackupStatuses[srv].Enabled
+}
+
 // createBackup creates a backup for the specific server.
-func createBackup(ctx context.Context, srv, dest string) error {
+func createBackup(ctx context.Context, force bool, srv, dest string) error {
+	if !shouldBackup(force, srv) {
+		return nil
+	}
 	worldDir := filepath.Join(common.ServerDirectory(srv), "world")
 	currTime := time.Now().Format(time.RFC3339)
 
@@ -83,6 +80,15 @@ func createBackup(ctx context.Context, srv, dest string) error {
 
 	// Notify that the backup has been created.
 	server.Notify(ctx, srv, fmt.Sprintf("Backup created at %s", currTime))
+
+	// If no one is online, then stop doing backups. We assume that the server is also
+	// not running when Online returns an error.
+	common.BackupStatusesMu.Lock()
+	online, _ := status.Online(ctx, uint16(common.ServerStatuses[srv].Port))
+	if online == 0 {
+		common.BackupStatuses[srv].Enabled = false
+	}
+	common.BackupStatusesMu.Unlock()
 	return nil
 }
 
@@ -128,25 +134,4 @@ func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 		}()
 	}
 	return errors.Join(errs...)
-}
-
-// Writecommon.BackupStatus writes the backup common.BackupStatus.
-func WriteBackupStatus() error {
-	common.BackupStatusesMu.Lock()
-	defer common.BackupStatusesMu.Unlock()
-
-	// Don't write anything if the map is empty.
-	if common.BackupStatuses == nil || len(common.BackupStatuses) == 0 {
-		return nil
-	}
-
-	// Marshal and write the JSON.
-	b, err := json.Marshal(common.BackupStatuses)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(common.BackupLockPath(), b, 0644); err != nil {
-		return fmt.Errorf("failed to write backup lock file: %v", err)
-	}
-	return nil
 }

@@ -4,6 +4,7 @@ package backup
 import (
 	"context"
 	"fmt"
+	"log"
 	"slices"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
@@ -48,6 +49,7 @@ func createBackup(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to get all servers: %v", err)
 		}
 	}
+	log.Printf("Creating backups for %v", servers)
 	return backup.Create(context.Background(), force, gcsBucket, servers...)
 }
 

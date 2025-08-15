@@ -49,10 +49,10 @@ var (
 
 // InitStatuses initializes both status maps.
 func InitStatuses() error {
-	if err := initStatus(ServerStatuses, &ServerStatusesMu, ServerInfoFile); err != nil {
+	if err := initStatus(&ServerStatuses, &ServerStatusesMu, ServerInfoFile); err != nil {
 		return err
 	}
-	if err := initStatus(BackupStatuses, &BackupStatusesMu, BackupLockFile); err != nil {
+	if err := initStatus(&BackupStatuses, &BackupStatusesMu, BackupLockFile); err != nil {
 		return err
 	}
 	return nil
@@ -72,7 +72,7 @@ func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 		return nil
 	}
 	log.Printf("Got contents %s", string(contentBytes))
-	if err := json.Unmarshal(contentBytes, &statusMap); err != nil {
+	if err := json.Unmarshal(contentBytes, statusMap); err != nil {
 		return fmt.Errorf("failed to unmarshal %s file: %w", file, err)
 	}
 	return nil

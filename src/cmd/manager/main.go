@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
+	"github.com/dranilew/minecraft-server-manager/src/lib/common"
 	"github.com/dranilew/minecraft-server-manager/src/lib/monitor"
 	"github.com/dranilew/minecraft-server-manager/src/lib/run"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
@@ -87,17 +88,17 @@ func handleStatus() error {
 		return err
 	}
 	for _, srv := range runningServers {
-		online, err := status.Online(ctx, status.ServerIP, uint16(server.Statuses[srv].Port))
+		online, err := status.Online(ctx, uint16(common.ServerStatuses[srv].Port))
 		if err != nil {
 			log.Printf("Error fetching %q server status: %v", srv, err)
 		}
 		if online > 0 {
-			backup.StatusMu.Lock()
-			backup.Statuses[srv].SetEnabled(true)
-			backup.StatusMu.Unlock()
+			common.BackupStatusesMu.Lock()
+			common.BackupStatuses[srv].Enabled = true
+			common.BackupStatusesMu.Unlock()
 		}
 	}
-	if err := backup.WriteStatus(); err != nil {
+	if err := backup.WriteBackupStatus(); err != nil {
 		return fmt.Errorf("Failed to update backup status: %v", err)
 	}
 	return nil
@@ -110,7 +111,7 @@ func handleCrash() error {
 		return err
 	}
 	var startServers []string
-	for k, v := range server.Statuses {
+	for k, v := range common.ServerStatuses {
 		// If server should run but isn't, we start it again.
 		if v.ShouldRun && !slices.Contains(runningServers, k) {
 			startServers = append(startServers, k)

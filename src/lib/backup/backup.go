@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -20,45 +19,10 @@ import (
 	"github.com/dranilew/minecraft-server-manager/src/lib/status"
 )
 
-var (
-	// Destination is the location to which backups are uploaded.
-	Destination = flag.String("backup-dest", "", "Location to which backups are uploaded. Only GCS URLs are currently supported.")
-	// Statuses stores the status of all the backups.
-	Statuses BackupStatuses
-	StatusMu sync.Mutex
-)
-
-// BackupStatuses maps a server name to its backup status.
-type BackupStatuses map[string]*BackupStatus
-
-// BackupStatus represents the status of backups for a certain server.
-type BackupStatus struct {
-	// Enabled indicates whether to backup the server on the next cycle.
-	Enabled bool `json:"enabled"`
-	// enabledMu is the Mutex for Enabled. This must be held when accessing or changing
-	// the value of Enabled.
-	enabledMu sync.Mutex `json:"-"`
-}
-
-// IsEnabled returns whether the backup is enabled.
-func (b *BackupStatus) IsEnabled() bool {
-	b.enabledMu.Lock()
-	res := b.Enabled
-	b.enabledMu.Unlock()
-	return res
-}
-
-// SetEnabled sets the enabled state of the BackupStatus.
-func (b *BackupStatus) SetEnabled(status bool) {
-	b.enabledMu.Lock()
-	b.Enabled = status
-	b.enabledMu.Unlock()
-}
-
-// Init initializes the statuses map.
+// Init initializes the common.BackupStatuses map.
 func Init() error {
-	StatusMu.Lock()
-	defer StatusMu.Unlock()
+	common.BackupStatusesMu.Lock()
+	defer common.BackupStatusesMu.Unlock()
 	contentBytes, err := os.ReadFile(filepath.Join(*common.ModpackLocation, "backup.lock"))
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -66,7 +30,7 @@ func Init() error {
 		}
 		return nil
 	}
-	if err := json.Unmarshal(contentBytes, &Statuses); err != nil {
+	if err := json.Unmarshal(contentBytes, &common.BackupStatuses); err != nil {
 		return fmt.Errorf("Failed to unmarshal backup lock file: %v", err)
 	}
 	return nil
@@ -77,16 +41,23 @@ func Init() error {
 func Create(ctx context.Context, force bool, dest string, servers ...string) error {
 	var errs []error
 	for _, srv := range servers {
-		if force || Statuses[srv].IsEnabled() {
+		common.BackupStatusesMu.Lock()
+		if force || common.BackupStatuses[srv].Enabled {
+			common.BackupStatusesMu.Unlock()
 			if err := createBackup(ctx, srv, dest); err != nil {
 				errs = append(errs, err)
 			}
+
 			// If no one is online, then stop doing backups. We assume that the server is also
 			// not running when Online returns an error.
-			online, _ := status.Online(ctx, status.ServerIP, uint16(server.Statuses[srv].Port))
+			online, _ := status.Online(ctx, uint16(common.ServerStatuses[srv].Port))
 			if online == 0 {
-				Statuses[srv].SetEnabled(false)
+				common.BackupStatusesMu.Lock()
+				common.BackupStatuses[srv].Enabled = false
+				common.BackupStatusesMu.Unlock()
 			}
+		} else {
+			common.BackupStatusesMu.Unlock()
 		}
 	}
 	return errors.Join(errs...)
@@ -107,7 +78,7 @@ func createBackup(ctx context.Context, srv, dest string) error {
 	tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("%s-%s", srv, currTime)) // Temporary directory to store the zip file.
 	backupFile := filepath.Join(tempDir, backupName(srv))
 
-	// Create the zipe file.
+	// Create the zip file.
 	zipFile, err := os.Create(backupFile)
 	if err != nil {
 		return fmt.Errorf("failed to create zip file %q: %v", backupFile, err)
@@ -122,10 +93,8 @@ func createBackup(ctx context.Context, srv, dest string) error {
 	}
 
 	// Upload to the storage bucket if a URL is provided.
-	if Destination != nil && *Destination != "" {
-		if err := exec.Command("gcloud", "storage", "cp", backupFile, fmt.Sprintf("gs://%s/%s/%s", dest, srv, backupName(srv))).Run(); err != nil {
-			return fmt.Errorf("failed to upload %q to %q: %v", backupFile, dest, err)
-		}
+	if err := exec.Command("gcloud", "storage", "cp", backupFile, fmt.Sprintf("gs://%s/%s/%s", dest, srv, backupName(srv))).Run(); err != nil {
+		return fmt.Errorf("failed to upload %q to %q: %v", backupFile, dest, err)
 	}
 	os.RemoveAll(tempDir) // Only remove if the file has been successfully uploaded.
 
@@ -178,18 +147,18 @@ func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 	return errors.Join(errs...)
 }
 
-// WriteStatus writes the backup status.
-func WriteStatus() error {
-	StatusMu.Lock()
-	defer StatusMu.Unlock()
+// Writecommon.BackupStatus writes the backup common.BackupStatus.
+func WriteBackupStatus() error {
+	common.BackupStatusesMu.Lock()
+	defer common.BackupStatusesMu.Unlock()
 
 	// Don't write anything if the map is empty.
-	if Statuses == nil || len(Statuses) == 0 {
+	if common.BackupStatuses == nil || len(common.BackupStatuses) == 0 {
 		return nil
 	}
 
 	// Marshal and write the JSON.
-	b, err := json.Marshal(Statuses)
+	b, err := json.Marshal(common.BackupStatuses)
 	if err != nil {
 		return err
 	}

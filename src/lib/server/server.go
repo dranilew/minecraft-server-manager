@@ -34,27 +34,15 @@ var (
 	// numServers keeps track of the number of servers.
 	numServers   uint
 	numServersMu sync.Mutex
-	// Statuses keeps track of server status.
-	Statuses = make(map[string]*ServerStatus)
-	statusMu sync.Mutex
 	// crashReportsRegex is the regex for crash reports.
 	crashReportsRegex = regexp.MustCompile("[0-9]+-[0-9]+-[0-9]+_[0-9]+.[0-9]+.[0-9]+")
 )
 
-type ServerStatus struct {
-	// Name is the name of the server/modpack.
-	Name string
-	// ShouldRun indicates if the server is expected to be running.
-	ShouldRun bool
-	// Port is the port that the server is using.
-	Port int
-}
-
 // Init initializes the status map.
 func Init() error {
 	// Initialize the status map.
-	statusMu.Lock()
-	defer statusMu.Unlock()
+	common.ServerStatusesMu.Lock()
+	defer common.ServerStatusesMu.Unlock()
 	contentBytes, err := os.ReadFile(filepath.Join(*common.ModpackLocation, serverInfoFile))
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -62,7 +50,7 @@ func Init() error {
 		}
 		return nil
 	}
-	if err := json.Unmarshal(contentBytes, &Statuses); err != nil {
+	if err := json.Unmarshal(contentBytes, &common.ServerStatuses); err != nil {
 		return fmt.Errorf("Failed to unmarshal %s file: %w", serverInfoFile, err)
 	}
 	return nil
@@ -144,16 +132,16 @@ func Notify(ctx context.Context, server string, message string) error {
 // determinePort determines the port to use for the server.
 // The boolean indicates whether the server is a new server.
 func determinePort(server string) (int, bool) {
-	status, ok := Statuses[server]
+	status, ok := common.ServerStatuses[server]
 	if ok {
 		return status.Port, false
 	}
 	port := baseServerPort
 
-	statusMu.Lock()
-	defer statusMu.Unlock()
+	common.ServerStatusesMu.Lock()
+	defer common.ServerStatusesMu.Unlock()
 	isValid := func(port int) bool {
-		for _, v := range Statuses {
+		for _, v := range common.ServerStatuses {
 			if v.Port == port {
 				return false
 			}
@@ -208,22 +196,22 @@ func Start(ctx context.Context, servers ...string) error {
 
 		log.Printf("%q: Determining port for server...", server)
 		port, isNew := determinePort(server)
-		statusMu.Lock()
+		common.ServerStatusesMu.Lock()
 		if isNew {
 			log.Printf("%q: Setting port to %d", server, port)
 			if err := setPort(server, port); err != nil {
-				statusMu.Unlock()
+				common.ServerStatusesMu.Unlock()
 				return fmt.Errorf("Failed to set port for server %q: %v", server, err)
 			}
-			Statuses[server] = &ServerStatus{
+			common.ServerStatuses[server] = &common.ServerStatus{
 				Name: server,
 				Port: port,
 			}
 		} else {
 			log.Printf("Got port %d for server %q", port, server)
 		}
-		Statuses[server].ShouldRun = true
-		statusMu.Unlock()
+		common.ServerStatuses[server].ShouldRun = true
+		common.ServerStatusesMu.Unlock()
 
 		// Start the server.
 		entry := filepath.Join(common.ServerDirectory(server), "run.sh")
@@ -249,6 +237,7 @@ func Start(ctx context.Context, servers ...string) error {
 	if err := WriteServerStatus(); err != nil {
 		return fmt.Errorf("Failed to update server status: %v", err)
 	}
+
 	return nil
 }
 
@@ -268,9 +257,9 @@ func Stop(ctx context.Context, servers ...string) error {
 			if !slices.Contains(runningServers, server) {
 				return
 			}
-			statusMu.Lock()
-			Statuses[server].ShouldRun = false
-			statusMu.Unlock()
+			common.ServerStatusesMu.Lock()
+			common.ServerStatuses[server].ShouldRun = false
+			common.ServerStatusesMu.Unlock()
 
 			// Attempt to stop the server naturally.
 			opts := run.Options{
@@ -310,6 +299,11 @@ func Stop(ctx context.Context, servers ...string) error {
 				log.Printf("Server did not exit within timeout, force-killing...")
 				Kill(ctx, false, server)
 			}
+
+			// Enable backups one last time.
+			common.BackupStatusesMu.Lock()
+			common.BackupStatuses[server].Enabled = true
+			common.BackupStatusesMu.Unlock()
 		}()
 	}
 	wg.Wait()
@@ -334,9 +328,9 @@ func Restart(ctx context.Context, servers ...string) error {
 // fails to shut down the normal way.
 func Kill(ctx context.Context, recover bool, server string) error {
 	if !recover {
-		statusMu.Lock()
-		Statuses[server].ShouldRun = false
-		statusMu.Unlock()
+		common.ServerStatusesMu.Lock()
+		common.ServerStatuses[server].ShouldRun = false
+		common.ServerStatusesMu.Unlock()
 	}
 	killOpts := run.Options{
 		Name: "screen",
@@ -387,18 +381,18 @@ func Recover(ctx context.Context, server string) error {
 	return nil
 }
 
-// WriteServerStatus updates the server info file with updated information.
+// Writecommon.ServerStatus updates the server info file with updated information.
 func WriteServerStatus() error {
-	statusMu.Lock()
-	defer statusMu.Unlock()
+	common.ServerStatusesMu.Lock()
+	defer common.ServerStatusesMu.Unlock()
 
 	// Avoid writing if map is empty.
-	if Statuses == nil || len(Statuses) == 0 {
+	if common.ServerStatuses == nil || len(common.ServerStatuses) == 0 {
 		return nil
 	}
 
 	// Marshal and write the JSON.
-	b, err := json.Marshal(Statuses)
+	b, err := json.Marshal(common.ServerStatuses)
 	if err != nil {
 		return err
 	}

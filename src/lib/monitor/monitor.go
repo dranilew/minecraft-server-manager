@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 )
 
@@ -178,8 +177,6 @@ func handleMessage(req []byte) error {
 	reqString := string(req)
 	fields := strings.Fields(reqString)
 	switch fields[0] {
-	case "backup":
-		return backup.Create(ctx, false, *backup.Destination, fields[1:]...)
 	case "server":
 		switch fields[1] {
 		case "stop":

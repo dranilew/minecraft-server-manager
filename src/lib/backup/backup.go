@@ -23,13 +23,18 @@ import (
 func Create(ctx context.Context, force bool, dest string, servers ...string) error {
 	var errs []error
 	var errsMu sync.Mutex
+	var wg sync.WaitGroup
+
 	for _, srv := range servers {
+		wg.Add(1)
 		go func() {
 			errsMu.Lock()
 			defer errsMu.Unlock()
+			defer wg.Done()
 			errs = append(errs, createBackup(ctx, force, srv, dest))
 		}()
 	}
+	wg.Wait()
 	return errors.Join(errs...)
 }
 

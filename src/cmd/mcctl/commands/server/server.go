@@ -4,7 +4,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/dranilew/minecraft-server-manager/src/lib/monitor"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +30,7 @@ func newStartCommand() *cobra.Command {
 		Use:   "start <servers>",
 		Short: "Starts a server",
 		Long:  "Starts all listed servers.",
-		RunE:  startServers,
+		RunE:  sendRequest,
 	}
 }
 
@@ -37,7 +39,7 @@ func newRestartCommand() *cobra.Command {
 		Use:   "restart <servers>",
 		Short: "Restarts a server",
 		Long:  "Restarts all listed servers.",
-		RunE:  restartServers,
+		RunE:  sendRequest,
 	}
 }
 
@@ -46,7 +48,7 @@ func newStopCommand() *cobra.Command {
 		Use:   "stop <servers>",
 		Short: "Stops a sever",
 		Long:  "Stops all listed servers.",
-		RunE:  stopServers,
+		RunE:  sendRequest,
 	}
 }
 
@@ -59,14 +61,7 @@ func listServers(*cobra.Command, []string) error {
 	return nil
 }
 
-func startServers(cmd *cobra.Command, args []string) error {
-	return server.Start(context.Background(), args...)
-}
-
-func restartServers(cmd *cobra.Command, args []string) error {
-	return server.Restart(context.Background(), args...)
-}
-
-func stopServers(cmd *cobra.Command, args []string) error {
-	return server.Stop(context.Background(), args...)
+func sendRequest(cmd *cobra.Command, args []string) error {
+	reqArgs := append([]string{cmd.Parent().Name(), cmd.Name()}, args...)
+	return monitor.SendCommand(context.Background(), []byte(strings.Join(reqArgs, " ")))
 }

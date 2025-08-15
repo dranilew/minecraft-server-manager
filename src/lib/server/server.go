@@ -27,9 +27,6 @@ const (
 )
 
 var (
-	// numServers keeps track of the number of servers.
-	numServers   uint
-	numServersMu sync.Mutex
 	// crashReportsRegex is the regex for crash reports.
 	crashReportsRegex = regexp.MustCompile("[0-9]+-[0-9]+-[0-9]+_[0-9]+.[0-9]+.[0-9]+")
 )
@@ -97,7 +94,7 @@ func Notify(ctx context.Context, server string, message string) error {
 			server,
 			"-X",
 			"stuff",
-			fmt.Sprintf("/say %s", message),
+			fmt.Sprintf("/say %s^M", message),
 		},
 		OutputType: run.OutputNone,
 	}
@@ -122,7 +119,7 @@ func ForceSave(ctx context.Context, server string) error {
 			server,
 			"-X",
 			"stuff",
-			fmt.Sprintf("/save-all^M"),
+			"/save-all^M",
 		},
 		OutputType: run.OutputNone,
 	}
@@ -190,6 +187,8 @@ func Start(ctx context.Context, servers ...string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get running servers: %v", err)
 	}
+
+	var started bool
 	for _, server := range servers {
 		log.Printf("Starting server %q", server)
 		if slices.Contains(runningServers, server) {
@@ -197,6 +196,7 @@ func Start(ctx context.Context, servers ...string) error {
 			continue
 		}
 
+		started = true
 		log.Printf("%q: Determining port for server...", server)
 		port, isNew := determinePort(server)
 		common.ServerStatusesMu.Lock()
@@ -214,11 +214,11 @@ func Start(ctx context.Context, servers ...string) error {
 			log.Printf("Got port %d for server %q", port, server)
 		}
 		common.ServerStatuses[server].ShouldRun = true
+		common.ServerStatuses[server].StartTime = time.Now()
 		common.ServerStatusesMu.Unlock()
 
 		// Start the server.
 		entry := filepath.Join(common.ServerDirectory(server), "run.sh")
-		fmt.Printf("Starting server %q from %q\n", server, entry)
 		opts := run.Options{
 			Name: "screen",
 			Args: []string{
@@ -235,10 +235,12 @@ func Start(ctx context.Context, servers ...string) error {
 		if _, err := run.WithContext(ctx, opts); err != nil {
 			return fmt.Errorf("Failed to start server %s: %v", server, err)
 		}
-		log.Printf("Started server %q", server)
+		log.Printf("Started server %q from %q", server, entry)
 	}
-	if err := common.UpdateServerStatus(); err != nil {
-		return fmt.Errorf("Failed to update server status: %v", err)
+	if started {
+		if err := common.UpdateServerStatus(); err != nil {
+			return fmt.Errorf("Failed to update server status: %v", err)
+		}
 	}
 
 	return nil
@@ -250,6 +252,7 @@ func Stop(ctx context.Context, servers ...string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get currently running servers")
 	}
+	var stopped bool
 	var wg sync.WaitGroup
 	for _, server := range servers {
 		// Stop/kill each specified server in their own go routines.
@@ -260,8 +263,12 @@ func Stop(ctx context.Context, servers ...string) error {
 			if !slices.Contains(runningServers, server) {
 				return
 			}
+
+			// Server shouldn't run anymore. Reset start time.
+			stopped = true
 			common.ServerStatusesMu.Lock()
 			common.ServerStatuses[server].ShouldRun = false
+			common.ServerStatuses[server].StartTime = time.Time{}
 			common.ServerStatusesMu.Unlock()
 
 			// Attempt to stop the server naturally.
@@ -310,8 +317,10 @@ func Stop(ctx context.Context, servers ...string) error {
 		}()
 	}
 	wg.Wait()
-	if err := common.UpdateServerStatus(); err != nil {
-		return fmt.Errorf("failed to update server status: %v", err)
+	if stopped {
+		if err := common.UpdateServerStatus(); err != nil {
+			return fmt.Errorf("failed to update server status: %v", err)
+		}
 	}
 	return nil
 }

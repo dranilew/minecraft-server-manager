@@ -38,9 +38,9 @@ func init() {
 
 // Online gets the number of players online on the server.
 func Online(ctx context.Context, port uint16) (int, error) {
-	resp, err := status.Modern(ctx, ServerIP, port)
+	resp, err := status.Legacy(ctx, ServerIP, port)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get server status: %v", err)
 	}
-	return int(*resp.Players.Online), nil
+	return int(resp.Players.Online), nil
 }

@@ -6,9 +6,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 func init() {
@@ -18,11 +20,13 @@ func init() {
 // ServerStatus represents the status of a server.
 type ServerStatus struct {
 	// Name is the name of the server/modpack.
-	Name string
+	Name string `json:"name"`
 	// ShouldRun indicates if the server is expected to be running.
-	ShouldRun bool
+	ShouldRun bool `json:"should-run"`
 	// Port is the port that the server is using.
-	Port int
+	Port int `json:"port"`
+	// StartTime is the time the server started.
+	StartTime time.Time
 }
 
 const (
@@ -45,10 +49,10 @@ var (
 
 // InitStatuses initializes both status maps.
 func InitStatuses() error {
-	if err := initStatus(ServerStatuses, &ServerStatusesMu, ServerInfoFile); err != nil {
+	if err := initStatus(&ServerStatuses, &ServerStatusesMu, ServerInfoFile); err != nil {
 		return err
 	}
-	if err := initStatus(BackupStatuses, &BackupStatusesMu, BackupLockFile); err != nil {
+	if err := initStatus(&BackupStatuses, &BackupStatusesMu, BackupLockFile); err != nil {
 		return err
 	}
 	return nil
@@ -58,14 +62,17 @@ func InitStatuses() error {
 func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 	mu.Lock()
 	defer mu.Unlock()
-	contentBytes, err := os.ReadFile(filepath.Join(*ModpackLocation, file))
+	statusFile := filepath.Join(*ModpackLocation, file)
+	log.Printf("Reading status from file %q", statusFile)
+	contentBytes, err := os.ReadFile(statusFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("failed to read %s file: %w", file, err)
 		}
 		return nil
 	}
-	if err := json.Unmarshal(contentBytes, &statusMap); err != nil {
+	log.Printf("Got contents %s", string(contentBytes))
+	if err := json.Unmarshal(contentBytes, statusMap); err != nil {
 		return fmt.Errorf("failed to unmarshal %s file: %w", file, err)
 	}
 	return nil
@@ -91,9 +98,11 @@ func updateStatus(statusMap any, mu *sync.Mutex, file string) error {
 		return err
 	}
 	path := filepath.Join(*ModpackLocation, file)
-	if err := os.WriteFile(path, b, 644); err != nil {
+	if err := os.WriteFile(path, b, 0644); err != nil {
 		return err
 	}
+	log.Printf("Status: %+v", statusMap)
+	log.Printf("updated status %s to %s", string(b), path)
 	return nil
 }
 

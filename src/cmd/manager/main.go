@@ -21,7 +21,7 @@ import (
 func main() {
 	writer, err := syslog.New(syslog.LOG_INFO, "minecraft-server-manager")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 	log.SetOutput(writer)
 	if err := monitor.Setup(context.Background()); err != nil {
@@ -31,6 +31,8 @@ func main() {
 	if err := common.InitStatuses(); err != nil {
 		log.Fatalf("Failed to initialize status maps: %v", err)
 	}
+	log.Printf("ServerStatus: %+v", common.ServerStatuses)
+	log.Printf("BackupStatus: %+v", common.BackupStatuses)
 
 	go recoverServers()
 	go writeStatus()
@@ -86,19 +88,39 @@ func handleStatus() error {
 	if err != nil {
 		return err
 	}
+
+	var changed bool
 	for _, srv := range runningServers {
-		online, err := status.Online(ctx, uint16(common.ServerStatuses[srv].Port))
-		if err != nil {
-			log.Printf("Error fetching %q server status: %v", srv, err)
+		common.ServerStatusesMu.Lock()
+		s, ok := common.ServerStatuses[srv]
+		if !ok {
+			common.ServerStatusesMu.Unlock()
+			continue
 		}
+		online, err := status.Online(ctx, uint16(s.Port))
+		if err != nil {
+			if time.Since(s.StartTime) < time.Minute {
+				common.ServerStatusesMu.Unlock()
+				continue
+			}
+			common.ServerStatusesMu.Unlock()
+			log.Printf("Error fetching %q server status: %v", srv, err)
+			continue
+		}
+		common.ServerStatusesMu.Unlock()
 		if online > 0 {
 			common.BackupStatusesMu.Lock()
 			common.BackupStatuses[srv] = true
 			common.BackupStatusesMu.Unlock()
+			changed = true
 		}
 	}
-	if err := common.UpdateBackupStatus(); err != nil {
-		return fmt.Errorf("Failed to update backup status: %v", err)
+
+	// Only update if something has changed.
+	if changed {
+		if err := common.UpdateBackupStatus(); err != nil {
+			return fmt.Errorf("Failed to update backup status: %v", err)
+		}
 	}
 	return nil
 }

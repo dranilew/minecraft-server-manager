@@ -88,6 +88,8 @@ func handleStatus() error {
 	if err != nil {
 		return err
 	}
+
+	var changed bool
 	for _, srv := range runningServers {
 		common.ServerStatusesMu.Lock()
 		s, ok := common.ServerStatuses[srv]
@@ -104,10 +106,15 @@ func handleStatus() error {
 			common.BackupStatusesMu.Lock()
 			common.BackupStatuses[srv] = true
 			common.BackupStatusesMu.Unlock()
+			changed = true
 		}
 	}
-	if err := common.UpdateBackupStatus(); err != nil {
-		return fmt.Errorf("Failed to update backup status: %v", err)
+
+	// Only update if something has changed.
+	if changed {
+		if err := common.UpdateBackupStatus(); err != nil {
+			return fmt.Errorf("Failed to update backup status: %v", err)
+		}
 	}
 	return nil
 }

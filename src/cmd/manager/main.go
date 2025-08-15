@@ -87,7 +87,9 @@ func handleStatus() error {
 		return err
 	}
 	for _, srv := range runningServers {
+		common.ServerStatusesMu.Lock()
 		online, err := status.Online(ctx, uint16(common.ServerStatuses[srv].Port))
+		common.ServerStatusesMu.Unlock()
 		if err != nil {
 			log.Printf("Error fetching %q server status: %v", srv, err)
 		}

@@ -30,7 +30,6 @@ func Create(ctx context.Context, force bool, dest string, servers ...string) err
 
 	for _, srv := range servers {
 		wg.Go(func() {
-			defer wg.Done()
 			backedUp, err := createBackup(ctx, force, srv, dest)
 			errsMu.Lock()
 			errs = append(errs, err)

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
@@ -25,6 +26,7 @@ func Create(ctx context.Context, force bool, dest string, servers ...string) err
 	var errs []error
 	var errsMu sync.Mutex
 	var wg sync.WaitGroup
+	var backupMade atomic.Bool
 
 	for _, srv := range servers {
 		wg.Add(1)
@@ -32,10 +34,17 @@ func Create(ctx context.Context, force bool, dest string, servers ...string) err
 			errsMu.Lock()
 			defer errsMu.Unlock()
 			defer wg.Done()
-			errs = append(errs, createBackup(ctx, force, srv, dest))
+			backedUp, err := createBackup(ctx, force, srv, dest)
+			errs = append(errs, err)
+			if backedUp {
+				backupMade.Store(true)
+			}
 		}()
 	}
 	wg.Wait()
+	if backupMade.Load() {
+		errs = append(errs, common.UpdateBackupStatus())
+	}
 	return errors.Join(errs...)
 }
 
@@ -60,9 +69,9 @@ func shouldBackup(force bool, srv string) bool {
 }
 
 // createBackup creates a backup for the specific server.
-func createBackup(ctx context.Context, force bool, srv, dest string) error {
+func createBackup(ctx context.Context, force bool, srv, dest string) (bool, error) {
 	if !shouldBackup(force, srv) {
-		return nil
+		return false, nil
 	}
 	worldDir := filepath.Join(common.ServerDirectory(srv), "world")
 	currTime := time.Now().Format(time.RFC3339)
@@ -74,14 +83,14 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	// Create a temporary file for zipping
 	zipFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.zip", srv)) // Temporary directory to store the zip file.
 	if err != nil {
-		return fmt.Errorf("failed to create zip file %q: %v", zipFile.Name(), err)
+		return false, fmt.Errorf("failed to create zip file %q: %v", zipFile.Name(), err)
 	}
 	backupFile := zipFile.Name()
 	defer zipFile.Close()
 
 	// Let the zipfile be readable by others.
 	if err := zipFile.Chmod(0644); err != nil {
-		return fmt.Errorf("failed to chmod zipfile: %v", err)
+		return false, fmt.Errorf("failed to chmod zipfile: %v", err)
 	}
 
 	// Create the zip file.
@@ -90,7 +99,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 
 	// Copy all files in the world directory into the zip file.
 	if err := copyToZip(zipWriter, worldDir, ""); err != nil {
-		return fmt.Errorf("failed to copy world files to zip folder: %v", err)
+		return false, fmt.Errorf("failed to copy world files to zip folder: %v", err)
 	}
 
 	fullDestination := fmt.Sprintf("%s/%s/%s", dest, srv, backupName(srv))
@@ -99,9 +108,9 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	if err := exec.Command("gcloud", "storage", "cp", backupFile, fullDestination).Run(); err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if !ok {
-			return fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, err)
+			return false, fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, err)
 		}
-		return fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, string(exitErr.Stderr))
+		return false, fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, string(exitErr.Stderr))
 	}
 	if err := os.Remove(backupFile); err != nil {
 		log.Printf("Failed to remove temporary zip file: %v", err)
@@ -118,7 +127,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 		common.BackupStatuses[srv] = false
 	}
 	common.BackupStatusesMu.Unlock()
-	return nil
+	return true, nil
 }
 
 // copyToZip recurses through all files from baseDir and adds them to the zip file.

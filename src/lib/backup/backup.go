@@ -85,6 +85,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 		return fmt.Errorf("failed to copy world files to zip folder: %v", err)
 	}
 
+	fmt.Printf("Zip file created at %s", backupFile)
 	// Upload to the storage bucket if a URL is provided.
 	if err := exec.Command("gcloud", "storage", "cp", backupFile, fmt.Sprintf("%s/%s/%s", dest, srv, backupName(srv))).Run(); err != nil {
 		return fmt.Errorf("failed to upload %q to %q: %v", backupFile, dest, err)

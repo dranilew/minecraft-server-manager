@@ -110,9 +110,9 @@ func handleStatus() error {
 		common.ServerStatusesMu.Unlock()
 		if online > 0 {
 			common.BackupStatusesMu.Lock()
+			changed = !common.BackupStatuses[srv] // This would only change if previous value is false.
 			common.BackupStatuses[srv] = true
 			common.BackupStatusesMu.Unlock()
-			changed = true
 		}
 	}
 

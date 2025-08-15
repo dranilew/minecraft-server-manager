@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
@@ -24,18 +26,34 @@ var (
 // New returns a new command for creating backups.
 func New() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "backup",
-		Short:   "Manages backups",
-		Long:    "Creates backups and uploads to a specified GCS URL",
-		PreRunE: initStatus,
-		RunE:    createBackup,
+		Use:               "backup",
+		Short:             "Manages backups",
+		Long:              "Provides commands for managing backups for all servers.",
+		PersistentPreRunE: initStatus,
 	}
-	cmd.Flags().StringVar(&gcsBucket, "bucket", "", "The GCS bucket and location to which to store backups. This should contain gs://. The backups will use the destination [gcsBucket]/SERVERNAME")
-	cmd.MarkFlagRequired("bucket")
-	cmd.Flags().BoolVar(&force, "force", false, "Force a backup regardless of the current backup status.")
+
+	createCmd := &cobra.Command{
+		Use:   "create",
+		Short: "Creates a backup",
+		Long:  "Create a backup, uploaded to the specified bucket. Specifying 'all' creates a backup for all servers.",
+		RunE:  createBackup,
+	}
+
+	infoCmd := &cobra.Command{
+		Use:   "info",
+		Short: "Gets backup lock information",
+		Long:  "Gets backup lock information",
+		RunE:  backupInfo,
+	}
+	createCmd.Flags().StringVar(&gcsBucket, "bucket", "", "The GCS bucket and location to which to store backups. This should contain gs://. The backups will use the destination [gcsBucket]/SERVERNAME")
+	createCmd.MarkFlagRequired("bucket")
+	createCmd.Flags().BoolVar(&force, "force", false, "Force a backup regardless of the current backup status.")
 
 	// Parse flags.
-	cmd.Flags().Parse([]string{"bucket", "force"})
+	createCmd.Flags().Parse([]string{"bucket", "force"})
+
+	cmd.AddCommand(createCmd)
+	cmd.AddCommand(infoCmd)
 	return cmd
 }
 
@@ -51,6 +69,22 @@ func createBackup(cmd *cobra.Command, args []string) error {
 	}
 	log.Printf("Creating backups for %v", servers)
 	return backup.Create(context.Background(), force, gcsBucket, servers...)
+}
+
+// backupInfo prints a pretty version of the backup.lock file.
+func backupInfo(*cobra.Command, []string) error {
+	var result []string
+	result = append(result, "NAME\tENABLED")
+
+	common.BackupStatusesMu.Lock()
+	for k, v := range common.BackupStatuses {
+		lineFields := []string{k, strconv.FormatBool(v)}
+		line := strings.Join(lineFields, "\t")
+		result = append(result, line)
+	}
+	common.BackupStatusesMu.Unlock()
+	fmt.Println(strings.Join(result, "\n"))
+	return nil
 }
 
 // initBackup initializes the status map.

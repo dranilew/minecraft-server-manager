@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -58,7 +59,9 @@ func InitStatuses() error {
 func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 	mu.Lock()
 	defer mu.Unlock()
-	contentBytes, err := os.ReadFile(filepath.Join(*ModpackLocation, file))
+	statusFile := filepath.Join(*ModpackLocation, file)
+	log.Printf("Reading status from file %q", file)
+	contentBytes, err := os.ReadFile(statusFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("failed to read %s file: %w", file, err)

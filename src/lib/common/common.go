@@ -27,6 +27,10 @@ type ServerStatus struct {
 	Port int `json:"port"`
 	// StartTime is the time the server started.
 	StartTime time.Time
+	// Recover contains server recovery information. Do not store
+	// this because if the binary is stopped while a server is recovering,
+	// then this is permanently marked as true.
+	Recovering bool `json:"-"`
 }
 
 const (

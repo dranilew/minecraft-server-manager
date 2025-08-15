@@ -24,6 +24,8 @@ const (
 	baseServerPort = 25565
 	// crashReportsDir is the directory containing crash reports.
 	crashReportsDir = "crash-reports"
+	// recoveryTime is the time to wait for recovery.
+	recoveryTime = 30 * time.Second
 )
 
 var (
@@ -104,6 +106,7 @@ func Notify(ctx context.Context, server string, message string) error {
 	return nil
 }
 
+// ForceSave forces a save operation on the server.
 func ForceSave(ctx context.Context, server string) error {
 	runningServers, err := GetRunningServers(ctx)
 	if err != nil {
@@ -132,12 +135,14 @@ func ForceSave(ctx context.Context, server string) error {
 // determinePort determines the port to use for the server.
 // The boolean indicates whether the server is a new server.
 func determinePort(server string) (int, bool) {
+	// Server already has a port assigned.
 	status, ok := common.ServerStatuses[server]
 	if ok {
 		return status.Port, false
 	}
 	port := baseServerPort
 
+	// Determine the first available port.
 	common.ServerStatusesMu.Lock()
 	defer common.ServerStatusesMu.Unlock()
 	isValid := func(port int) bool {
@@ -165,6 +170,7 @@ func setPort(server string, port int) error {
 	}
 	lines := strings.Split(string(properties), "\n")
 
+	// Replace the proper lines in the server.properties file.
 	var resLines []string
 	for _, line := range lines {
 		if strings.HasPrefix(line, "query.port") {
@@ -238,6 +244,7 @@ func Start(ctx context.Context, servers ...string) error {
 		log.Printf("Started server %q from %q", server, entry)
 	}
 	if started {
+		// Only update status if a new server is started.
 		if err := common.UpdateServerStatus(); err != nil {
 			return fmt.Errorf("Failed to update server status: %v", err)
 		}
@@ -318,6 +325,7 @@ func Stop(ctx context.Context, servers ...string) error {
 	}
 	wg.Wait()
 	if stopped {
+		// Only update if an existing server is actually stopped.
 		if err := common.UpdateServerStatus(); err != nil {
 			return fmt.Errorf("failed to update server status: %v", err)
 		}
@@ -382,11 +390,25 @@ func Recover(ctx context.Context, server string) error {
 		}
 
 		// If the server crashed in the last 30 seconds, attempt to restart the server.
-		if time.Since(crashTime) < time.Second*30 {
+		common.ServerStatusesMu.Lock()
+		srvRecoveryState := common.ServerStatuses[server].Recovering
+		common.ServerStatusesMu.Unlock()
+		if time.Since(crashTime) < recoveryTime && !srvRecoveryState {
+			common.ServerStatusesMu.Lock()
+			common.ServerStatuses[server].Recovering = true
+			common.ServerStatusesMu.Unlock()
 			log.Printf("Crash detected for server %q", server)
 			if err := Kill(ctx, true, server); err != nil {
 				return fmt.Errorf("failed to kill crashed server %q: %v", server, err)
 			}
+			go func() {
+				time.Sleep(recoveryTime)
+
+				// Reset Recovering to false.
+				common.ServerStatusesMu.Lock()
+				common.ServerStatuses[server].Recovering = false
+				common.ServerStatusesMu.Unlock()
+			}()
 			return Start(ctx, server)
 		}
 	}

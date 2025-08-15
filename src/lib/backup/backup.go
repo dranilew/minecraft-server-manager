@@ -76,6 +76,11 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	backupFile := zipFile.Name()
 	defer zipFile.Close()
 
+	// Let the zipfile be readable by others.
+	if err := zipFile.Chmod(0644); err != nil {
+		return fmt.Errorf("failed to chmod zipfile: %v", err)
+	}
+
 	// Create the zip file.
 	zipWriter := zip.NewWriter(zipFile)
 	defer zipWriter.Close()

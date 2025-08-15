@@ -94,7 +94,7 @@ func Notify(ctx context.Context, server string, message string) error {
 			server,
 			"-X",
 			"stuff",
-			fmt.Sprintf("/say %s", message),
+			fmt.Sprintf("/say %s^M", message),
 		},
 		OutputType: run.OutputNone,
 	}

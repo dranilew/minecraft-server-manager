@@ -26,7 +26,7 @@ func New() *cobra.Command {
 		PreRunE: initStatus,
 		RunE:    createBackup,
 	}
-	cmd.Flags().StringVar(&gcsBucket, "bucket", "", "The GCS bucket to which to store backups. This should contain gs://. The backups will use the destination [gcsBucket]/SERVERNAME")
+	cmd.Flags().StringVar(&gcsBucket, "bucket", "", "The GCS bucket and location to which to store backups. This should contain gs://. The backups will use the destination [gcsBucket]/SERVERNAME")
 	cmd.MarkFlagRequired("bucket")
 	cmd.Flags().BoolVar(&force, "force", false, "Force a backup regardless of the current backup status.")
 

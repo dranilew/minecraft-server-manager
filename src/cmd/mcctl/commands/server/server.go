@@ -4,8 +4,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
 	"github.com/dranilew/minecraft-server-manager/src/lib/monitor"
@@ -78,6 +80,7 @@ func serverInfo(*cobra.Command, []string) error {
 		return fmt.Errorf("error initializing server status map: %v", err)
 	}
 
+	w := tabwriter.NewWriter(os.Stdout, 5, 1, 2, ' ', 0)
 	var result []string
 	result = append(result, "NAME\tPORT\tSHOULDRUN\tSTARTTIME")
 
@@ -88,7 +91,7 @@ func serverInfo(*cobra.Command, []string) error {
 		result = append(result, line)
 	}
 	common.ServerStatusesMu.Unlock()
-	fmt.Println(strings.Join(result, "\n"))
+	fmt.Fprintln(w, strings.Join(result, "\n"))
 	return nil
 }
 

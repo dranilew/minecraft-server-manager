@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
@@ -73,6 +75,8 @@ func createBackup(cmd *cobra.Command, args []string) error {
 
 // backupInfo prints a pretty version of the backup.lock file.
 func backupInfo(*cobra.Command, []string) error {
+	w := tabwriter.NewWriter(os.Stdout, 5, 1, 2, ' ', 0)
+
 	var result []string
 	result = append(result, "NAME\tENABLED")
 
@@ -83,7 +87,7 @@ func backupInfo(*cobra.Command, []string) error {
 		result = append(result, line)
 	}
 	common.BackupStatusesMu.Unlock()
-	fmt.Println(strings.Join(result, "\n"))
+	fmt.Fprintln(w, strings.Join(result, "\n"))
 	return nil
 }
 

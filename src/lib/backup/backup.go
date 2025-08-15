@@ -29,17 +29,16 @@ func Create(ctx context.Context, force bool, dest string, servers ...string) err
 	var backupMade atomic.Bool
 
 	for _, srv := range servers {
-		wg.Add(1)
-		go func() {
-			errsMu.Lock()
-			defer errsMu.Unlock()
+		wg.Go(func() {
 			defer wg.Done()
 			backedUp, err := createBackup(ctx, force, srv, dest)
+			errsMu.Lock()
 			errs = append(errs, err)
+			errsMu.Unlock()
 			if backedUp {
 				backupMade.Store(true)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if backupMade.Load() {

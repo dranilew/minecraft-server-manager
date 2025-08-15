@@ -16,7 +16,7 @@ import (
 func main() {
 	writer, err := syslog.New(syslog.LOG_INFO, "mcctl")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 	log.SetOutput(writer)
 	ctx := context.Background()

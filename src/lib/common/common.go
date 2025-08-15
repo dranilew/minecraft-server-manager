@@ -19,11 +19,11 @@ func init() {
 // ServerStatus represents the status of a server.
 type ServerStatus struct {
 	// Name is the name of the server/modpack.
-	Name string
+	Name string `json:"name"`
 	// ShouldRun indicates if the server is expected to be running.
-	ShouldRun bool
+	ShouldRun bool `json:"should-run"`
 	// Port is the port that the server is using.
-	Port int
+	Port int `json:"port"`
 }
 
 const (
@@ -97,6 +97,7 @@ func updateStatus(statusMap any, mu *sync.Mutex, file string) error {
 	if err := os.WriteFile(path, b, 0644); err != nil {
 		return err
 	}
+	log.Printf("updated status to %s", path)
 	return nil
 }
 

@@ -62,5 +62,6 @@ func listServers(*cobra.Command, []string) error {
 }
 
 func sendRequest(cmd *cobra.Command, args []string) error {
-	return monitor.SendCommand(context.Background(), []byte(strings.Join(args, " ")))
+	reqArgs := append([]string{cmd.Parent().Name(), cmd.Name()}, args...)
+	return monitor.SendCommand(context.Background(), []byte(strings.Join(reqArgs, " ")))
 }

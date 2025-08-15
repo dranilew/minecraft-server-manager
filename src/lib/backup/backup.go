@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -66,17 +67,16 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	worldDir := filepath.Join(common.ServerDirectory(srv), "world")
 	currTime := time.Now().Format(time.RFC3339)
 
-	// Create a temporary directory for storing the zip file.
+	// Create a temporary file for zipping
 	server.Notify(ctx, srv, "Creating backup...")
-	tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("%s-%s", srv, currTime)) // Temporary directory to store the zip file.
-	backupFile := filepath.Join(tempDir, backupName(srv))
+	zipFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.zip", srv)) // Temporary directory to store the zip file.
+	if err != nil {
+		return fmt.Errorf("failed to create zip file %q: %v", zipFile.Name(), err)
+	}
+	backupFile := zipFile.Name()
+	defer zipFile.Close()
 
 	// Create the zip file.
-	zipFile, err := os.Create(backupFile)
-	if err != nil {
-		return fmt.Errorf("failed to create zip file %q: %v", backupFile, err)
-	}
-	defer zipFile.Close()
 	zipWriter := zip.NewWriter(zipFile)
 	defer zipWriter.Close()
 
@@ -89,7 +89,9 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	if err := exec.Command("gcloud", "storage", "cp", backupFile, fmt.Sprintf("gs://%s/%s/%s", dest, srv, backupName(srv))).Run(); err != nil {
 		return fmt.Errorf("failed to upload %q to %q: %v", backupFile, dest, err)
 	}
-	os.RemoveAll(tempDir) // Only remove if the file has been successfully uploaded.
+	if err := os.Remove(backupFile); err != nil {
+		log.Printf("Failed to remove temporary zip file: %v", err)
+	}
 
 	// Notify that the backup has been created.
 	server.Notify(ctx, srv, fmt.Sprintf("Backup created at %s", currTime))

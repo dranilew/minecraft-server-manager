@@ -97,6 +97,7 @@ func updateStatus(statusMap any, mu *sync.Mutex, file string) error {
 	if err := os.WriteFile(path, b, 0644); err != nil {
 		return err
 	}
+	log.Printf("Status: %+v", statusMap)
 	log.Printf("updated status %s to %s", string(b), path)
 	return nil
 }

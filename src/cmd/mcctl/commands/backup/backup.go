@@ -87,7 +87,7 @@ func backupInfo(*cobra.Command, []string) error {
 		result = append(result, line)
 	}
 	common.BackupStatusesMu.Unlock()
-	w.Write([]byte(strings.Join(result, "\n")))
+	fmt.Fprintln(w, []byte(strings.Join(result, "\n")))
 	w.Flush()
 	return nil
 }

@@ -2,6 +2,7 @@
 package backup
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log"
@@ -80,13 +81,31 @@ func backupInfo(*cobra.Command, []string) error {
 	var result []string
 	result = append(result, "NAME\tENABLED")
 
+	type status struct {
+		name    string
+		enabled bool
+	}
+
+	var statuses []*status
 	common.BackupStatusesMu.Lock()
 	for k, v := range common.BackupStatuses {
-		lineFields := []string{k, strconv.FormatBool(v)}
+		statuses = append(statuses, &status{name: k, enabled: v})
+	}
+	common.BackupStatusesMu.Unlock()
+
+	// Sort the statuses
+	slices.SortFunc(statuses, func(a *status, b *status) int {
+		return cmp.Compare(a.name, b.name)
+	})
+
+	// Formulate the output.
+	for _, v := range statuses {
+		lineFields := []string{v.name, strconv.FormatBool(v.enabled)}
 		line := strings.Join(lineFields, "\t")
 		result = append(result, line)
 	}
-	common.BackupStatusesMu.Unlock()
+
+	// Print the output.
 	fmt.Fprintln(w, strings.Join(result, "\n"))
 	w.Flush()
 	return nil

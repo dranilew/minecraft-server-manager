@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -84,13 +85,26 @@ func serverInfo(*cobra.Command, []string) error {
 	var result []string
 	result = append(result, "NAME\tPORT\tSHOULDRUN\tSTARTTIME")
 
+	var statuses []*common.ServerStatus
 	common.ServerStatusesMu.Lock()
 	for _, v := range common.ServerStatuses {
+		statuses = append(statuses, v)
+	}
+	common.ServerStatusesMu.Unlock()
+
+	// Sort the statuses
+	slices.SortFunc(statuses, func(a *common.ServerStatus, b *common.ServerStatus) int {
+		return a.Port - b.Port
+	})
+
+	// Formulate the output.
+	for _, v := range statuses {
 		lineFields := []string{v.Name, strconv.Itoa(v.Port), strconv.FormatBool(v.ShouldRun), v.StartTime.String()}
 		line := strings.Join(lineFields, "\t")
 		result = append(result, line)
 	}
-	common.ServerStatusesMu.Unlock()
+
+	// Print the output.
 	fmt.Fprintln(w, strings.Join(result, "\n"))
 	w.Flush()
 	return nil

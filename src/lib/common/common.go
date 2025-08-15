@@ -36,7 +36,7 @@ var (
 	// ModpackLocation is the location of the modpack files.
 	ModpackLocation = flag.String("modpackdir", "/etc/minecraft/modpacks", "Location to find minecraft modpack installations")
 	// BackupStatuses stores the status of all the backups.
-	BackupStatuses   map[string]bool
+	BackupStatuses   = make(map[string]bool)
 	BackupStatusesMu sync.Mutex
 	// ServerStatuses keeps track of server status.
 	ServerStatuses   = make(map[string]*ServerStatus)

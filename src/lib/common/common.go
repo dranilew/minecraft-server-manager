@@ -60,7 +60,7 @@ func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	statusFile := filepath.Join(*ModpackLocation, file)
-	log.Printf("Reading status from file %q", file)
+	log.Printf("Reading status from file %q", statusFile)
 	contentBytes, err := os.ReadFile(statusFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {

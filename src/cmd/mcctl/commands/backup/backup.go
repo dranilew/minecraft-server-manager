@@ -3,9 +3,12 @@ package backup
 
 import (
 	"context"
+	"fmt"
+	"slices"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
+	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +40,15 @@ func New() *cobra.Command {
 
 // createBackup creates a backup
 func createBackup(cmd *cobra.Command, args []string) error {
-	return backup.Create(context.Background(), force, gcsBucket, args...)
+	var err error
+	servers := args
+	if slices.Contains(args, "all") {
+		servers, err = server.AllServers(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to get all servers: %v", err)
+		}
+	}
+	return backup.Create(context.Background(), force, gcsBucket, servers...)
 }
 
 // initBackup initializes the status map.

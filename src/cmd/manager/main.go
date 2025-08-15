@@ -28,6 +28,10 @@ func main() {
 		log.Fatalf("Failed to setup command pipeline: %v", err)
 	}
 
+	if err := server.Init(); err != nil {
+		log.Fatalf("Failed to initialize server status: %v", err)
+	}
+
 	go recoverServers()
 	go writeStatus()
 

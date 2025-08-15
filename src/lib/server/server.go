@@ -50,20 +50,22 @@ type ServerStatus struct {
 	Port int
 }
 
-func init() {
+// Init initializes the status map.
+func Init() error {
 	// Initialize the status map.
 	statusMu.Lock()
 	defer statusMu.Unlock()
 	contentBytes, err := os.ReadFile(filepath.Join(*common.ModpackLocation, serverInfoFile))
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			log.Fatalf("Failed to read %s file: %v", serverInfoFile, err)
+			return fmt.Errorf("Failed to read %s file: %w", serverInfoFile, err)
 		}
-		return
+		return nil
 	}
 	if err := json.Unmarshal(contentBytes, &Statuses); err != nil {
-		log.Fatalf("Failed to unmarshal %s file: %v", serverInfoFile, err)
+		return fmt.Errorf("Failed to unmarshal %s file: %w", serverInfoFile, err)
 	}
+	return nil
 }
 
 // GetRunningServers gets the list of servers running on the machine.

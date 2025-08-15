@@ -93,7 +93,7 @@ func handleStatus() error {
 		}
 		if online > 0 {
 			common.BackupStatusesMu.Lock()
-			common.BackupStatuses[srv].Enabled = true
+			common.BackupStatuses[srv] = true
 			common.BackupStatusesMu.Unlock()
 		}
 	}

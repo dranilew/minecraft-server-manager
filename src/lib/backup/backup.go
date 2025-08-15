@@ -47,7 +47,15 @@ func backupName(server string) string {
 func shouldBackup(force bool, srv string) bool {
 	common.BackupStatusesMu.Lock()
 	defer common.BackupStatusesMu.Unlock()
-	return force || common.BackupStatuses[srv].Enabled
+
+	// Backup status might not exist if it's a new server.
+	// Automatically assume a backup should be made if it doesn't exist.
+	status, ok := common.BackupStatuses[srv]
+	if !ok {
+		common.BackupStatuses[srv] = true
+		return true
+	}
+	return force || status
 }
 
 // createBackup creates a backup for the specific server.
@@ -91,7 +99,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) error {
 	common.BackupStatusesMu.Lock()
 	online, _ := status.Online(ctx, uint16(common.ServerStatuses[srv].Port))
 	if online == 0 {
-		common.BackupStatuses[srv].Enabled = false
+		common.BackupStatuses[srv] = false
 	}
 	common.BackupStatusesMu.Unlock()
 	return nil

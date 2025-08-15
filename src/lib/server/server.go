@@ -280,7 +280,7 @@ func Stop(ctx context.Context, servers ...string) error {
 
 			// Enable backups one last time.
 			common.BackupStatusesMu.Lock()
-			common.BackupStatuses[server].Enabled = true
+			common.BackupStatuses[server] = true
 			common.BackupStatusesMu.Unlock()
 		}()
 	}

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+apt -y install dnsutils screen
+
 # Run from base of repository.
 go build ./src/cmd/manager
 go build ./src/cmd/mcctl

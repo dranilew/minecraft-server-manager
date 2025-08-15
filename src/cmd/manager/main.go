@@ -29,8 +29,8 @@ func main() {
 		log.Fatalf("Failed to setup command pipeline: %v", err)
 	}
 
-	if err := server.Init(); err != nil {
-		log.Fatalf("Failed to initialize server status: %v", err)
+	if err := common.InitStatuses(); err != nil {
+		log.Fatalf("Failed to initialize status maps: %v", err)
 	}
 
 	go recoverServers()

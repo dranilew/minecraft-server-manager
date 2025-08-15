@@ -3,8 +3,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -24,8 +22,6 @@ const (
 	killServerTimeout = 15
 	// This is the base server port. All other server ports are incremented above this.
 	baseServerPort = 25565
-	// serverInfo is the file containing server information.
-	serverInfoFile = "server.info"
 	// crashReportsDir is the directory containing crash reports.
 	crashReportsDir = "crash-reports"
 )
@@ -37,24 +33,6 @@ var (
 	// crashReportsRegex is the regex for crash reports.
 	crashReportsRegex = regexp.MustCompile("[0-9]+-[0-9]+-[0-9]+_[0-9]+.[0-9]+.[0-9]+")
 )
-
-// Init initializes the status map.
-func Init() error {
-	// Initialize the status map.
-	common.ServerStatusesMu.Lock()
-	defer common.ServerStatusesMu.Unlock()
-	contentBytes, err := os.ReadFile(filepath.Join(*common.ModpackLocation, serverInfoFile))
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed to read %s file: %w", serverInfoFile, err)
-		}
-		return nil
-	}
-	if err := json.Unmarshal(contentBytes, &common.ServerStatuses); err != nil {
-		return fmt.Errorf("Failed to unmarshal %s file: %w", serverInfoFile, err)
-	}
-	return nil
-}
 
 // GetRunningServers gets the list of servers running on the machine.
 func GetRunningServers(ctx context.Context) ([]string, error) {
@@ -234,7 +212,7 @@ func Start(ctx context.Context, servers ...string) error {
 		}
 		log.Printf("Started server %q", server)
 	}
-	if err := WriteServerStatus(); err != nil {
+	if err := common.UpdateServerStatus(); err != nil {
 		return fmt.Errorf("Failed to update server status: %v", err)
 	}
 
@@ -307,7 +285,7 @@ func Stop(ctx context.Context, servers ...string) error {
 		}()
 	}
 	wg.Wait()
-	if err := WriteServerStatus(); err != nil {
+	if err := common.UpdateServerStatus(); err != nil {
 		return fmt.Errorf("failed to update server status: %v", err)
 	}
 	return nil
@@ -377,27 +355,6 @@ func Recover(ctx context.Context, server string) error {
 			}
 			return Start(ctx, server)
 		}
-	}
-	return nil
-}
-
-// Writecommon.ServerStatus updates the server info file with updated information.
-func WriteServerStatus() error {
-	common.ServerStatusesMu.Lock()
-	defer common.ServerStatusesMu.Unlock()
-
-	// Avoid writing if map is empty.
-	if common.ServerStatuses == nil || len(common.ServerStatuses) == 0 {
-		return nil
-	}
-
-	// Marshal and write the JSON.
-	b, err := json.Marshal(common.ServerStatuses)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(*common.ModpackLocation, serverInfoFile), b, 0644); err != nil {
-		return err
 	}
 	return nil
 }

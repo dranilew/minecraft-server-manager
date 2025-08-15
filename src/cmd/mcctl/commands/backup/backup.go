@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
+	"github.com/dranilew/minecraft-server-manager/src/lib/common"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +23,7 @@ func New() *cobra.Command {
 		Use:     "backup",
 		Short:   "Manages backups",
 		Long:    "Creates backups and uploads to a specified GCS URL",
-		PreRunE: initBackup,
+		PreRunE: initStatus,
 		RunE:    createBackup,
 	}
 	cmd.Flags().StringVar(&gcsBucket, "bucket", "", "The GCS bucket to which to store backups. The backups will use the destination [gcsBucket]/SERVERNAME")
@@ -40,6 +41,6 @@ func createBackup(cmd *cobra.Command, args []string) error {
 }
 
 // initBackup initializes the status map.
-func initBackup(*cobra.Command, []string) error {
-	return backup.Init()
+func initStatus(*cobra.Command, []string) error {
+	return common.InitStatuses()
 }

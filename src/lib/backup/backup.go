@@ -19,23 +19,6 @@ import (
 	"github.com/dranilew/minecraft-server-manager/src/lib/status"
 )
 
-// Init initializes the common.BackupStatuses map.
-func Init() error {
-	common.BackupStatusesMu.Lock()
-	defer common.BackupStatusesMu.Unlock()
-	contentBytes, err := os.ReadFile(filepath.Join(*common.ModpackLocation, "backup.lock"))
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed to read backup lock file: %v", err)
-		}
-		return nil
-	}
-	if err := json.Unmarshal(contentBytes, &common.BackupStatuses); err != nil {
-		return fmt.Errorf("Failed to unmarshal backup lock file: %v", err)
-	}
-	return nil
-}
-
 // Create creates a backup for all servers in the list.
 // dest is the destination Google Cloud storage location.
 func Create(ctx context.Context, force bool, dest string, servers ...string) error {
@@ -162,7 +145,7 @@ func WriteBackupStatus() error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(common.BackupLockFile(), b, 0644); err != nil {
+	if err := os.WriteFile(common.BackupLockPath(), b, 0644); err != nil {
 		return fmt.Errorf("failed to write backup lock file: %v", err)
 	}
 	return nil

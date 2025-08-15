@@ -120,7 +120,6 @@ func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 	// Zip files cannot be created concurrently.
 	for _, file := range files {
 		// Recurse if it's a directory.
-		fmt.Printf("File: %v", filepath.Join(relativeDir, file.Name()))
 		if file.IsDir() {
 			errs = append(errs, copyToZip(zipWriter, baseDir, filepath.Join(relativeDir, file.Name())))
 			continue // Don't add directories to the zip file.

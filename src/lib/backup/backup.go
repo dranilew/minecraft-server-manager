@@ -43,8 +43,9 @@ type BackupStatus struct {
 // IsEnabled returns whether the backup is enabled.
 func (b *BackupStatus) IsEnabled() bool {
 	b.enabledMu.Lock()
-	defer b.enabledMu.Unlock()
-	return b.Enabled
+	res := b.Enabled
+	b.enabledMu.Unlock()
+	return res
 }
 
 // SetEnabled sets the enabled state of the BackupStatus.

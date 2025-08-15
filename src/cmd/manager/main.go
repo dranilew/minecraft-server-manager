@@ -21,7 +21,7 @@ import (
 func main() {
 	writer, err := syslog.New(syslog.LOG_INFO, "minecraft-server-manager")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 	log.SetOutput(writer)
 	if err := monitor.Setup(context.Background()); err != nil {
@@ -31,6 +31,8 @@ func main() {
 	if err := common.InitStatuses(); err != nil {
 		log.Fatalf("Failed to initialize status maps: %v", err)
 	}
+	log.Printf("ServerStatus: %+v", common.ServerStatuses)
+	log.Printf("BackupStatus: %+v", common.BackupStatuses)
 
 	go recoverServers()
 	go writeStatus()
@@ -89,13 +91,14 @@ func handleStatus() error {
 	for _, srv := range runningServers {
 		common.ServerStatusesMu.Lock()
 		s, ok := common.ServerStatuses[srv]
+		common.ServerStatusesMu.Unlock()
 		if !ok {
 			continue
 		}
 		online, err := status.Online(ctx, uint16(s.Port))
-		common.ServerStatusesMu.Unlock()
 		if err != nil {
 			log.Printf("Error fetching %q server status: %v", srv, err)
+			continue
 		}
 		if online > 0 {
 			common.BackupStatusesMu.Lock()

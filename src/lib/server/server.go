@@ -27,9 +27,6 @@ const (
 )
 
 var (
-	// numServers keeps track of the number of servers.
-	numServers   uint
-	numServersMu sync.Mutex
 	// crashReportsRegex is the regex for crash reports.
 	crashReportsRegex = regexp.MustCompile("[0-9]+-[0-9]+-[0-9]+_[0-9]+.[0-9]+.[0-9]+")
 )
@@ -122,7 +119,7 @@ func ForceSave(ctx context.Context, server string) error {
 			server,
 			"-X",
 			"stuff",
-			fmt.Sprintf("/save-all^M"),
+			"/save-all^M",
 		},
 		OutputType: run.OutputNone,
 	}

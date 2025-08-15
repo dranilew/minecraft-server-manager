@@ -91,7 +91,7 @@ func updateStatus(statusMap any, mu *sync.Mutex, file string) error {
 		return err
 	}
 	path := filepath.Join(*ModpackLocation, file)
-	if err := os.WriteFile(path, b, 644); err != nil {
+	if err := os.WriteFile(path, b, 0644); err != nil {
 		return err
 	}
 	return nil

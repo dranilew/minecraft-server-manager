@@ -122,6 +122,7 @@ func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 		// Recurse if it's a directory.
 		if file.IsDir() {
 			errs = append(errs, copyToZip(zipWriter, baseDir, filepath.Join(relativeDir, file.Name())))
+			continue // Don't add directories to the zip file.
 		}
 
 		// Copy all non-directory files.

@@ -34,7 +34,6 @@ func init() {
 		log.Fatalf("Failed to get server IP: %v", err)
 	}
 	ServerIP = ipRegex.FindString(out.Output)
-	log.Printf("Got server IP %q", ServerIP)
 }
 
 // Online gets the number of players online on the server.

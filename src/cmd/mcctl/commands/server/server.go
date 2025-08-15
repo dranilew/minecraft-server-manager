@@ -92,6 +92,7 @@ func serverInfo(*cobra.Command, []string) error {
 	}
 	common.ServerStatusesMu.Unlock()
 	w.Write([]byte(strings.Join(result, "\n")))
+	w.Flush()
 	return nil
 }
 

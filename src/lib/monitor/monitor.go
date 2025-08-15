@@ -14,7 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
+	"github.com/dranilew/minecraft-server-manager/src/lib/server"
+)
+
+const (
+	pipeFileMode = 0770
 )
 
 var (
@@ -98,15 +102,19 @@ func (s *Server) start(ctx context.Context) error {
 		return fmt.Errorf("already listening on pipe %q", s.pipe)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(s.pipe), 0755); err != nil {
+	if _, err := os.Stat(*pipe); err == nil {
+		if err := os.Remove(*pipe); err != nil {
+			return fmt.Errorf("error cleaning up previous pipe: %v", err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(s.pipe), pipeFileMode); err != nil {
 		return fmt.Errorf("failed to create directories for listener: %v", err)
 	}
 
 	// Create the listener.
-	var lc net.ListenConfig
-	srv, err := lc.Listen(ctx, "unix", s.pipe)
+	srv, err := listen(ctx, *pipe)
 	if err != nil {
-		return fmt.Errorf("failed to start listener on %q: %w", s.pipe, err)
+		return err
 	}
 	s.srv = srv
 
@@ -165,11 +173,21 @@ func (s *Server) close() error {
 
 // handleMessage handles the request received from the connection.
 func handleMessage(req []byte) error {
+	ctx := context.Background()
 	reqString := string(req)
 	fields := strings.Fields(reqString)
 	switch fields[0] {
-	case "backup":
-		return backup.Create(fields[1:]...)
+	case "server":
+		switch fields[1] {
+		case "stop":
+			return server.Stop(ctx, fields[2:]...)
+		case "start":
+			return server.Start(ctx, fields[2:]...)
+		case "restart":
+			return server.Restart(ctx, fields[2:]...)
+		default:
+			return fmt.Errorf("unknown server request: %v", fields[1])
+		}
 	default:
 		return fmt.Errorf("unknown request: %v", fields[0])
 	}

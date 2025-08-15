@@ -219,7 +219,6 @@ func Start(ctx context.Context, servers ...string) error {
 
 		// Start the server.
 		entry := filepath.Join(common.ServerDirectory(server), "run.sh")
-		fmt.Printf("Starting server %q from %q\n", server, entry)
 		opts := run.Options{
 			Name: "screen",
 			Args: []string{
@@ -236,7 +235,7 @@ func Start(ctx context.Context, servers ...string) error {
 		if _, err := run.WithContext(ctx, opts); err != nil {
 			return fmt.Errorf("Failed to start server %s: %v", server, err)
 		}
-		log.Printf("Started server %q", server)
+		log.Printf("Started server %q from %q", server, entry)
 	}
 	if started {
 		if err := common.UpdateServerStatus(); err != nil {

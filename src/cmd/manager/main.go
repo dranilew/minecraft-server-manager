@@ -19,21 +19,26 @@ import (
 )
 
 func main() {
+	// Set up logger for syslog.
 	writer, err := syslog.New(syslog.LOG_INFO, "minecraft-server-manager")
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	log.SetOutput(writer)
+
+	// Set up command monitoring pipeline for use with mcctl.
 	if err := monitor.Setup(context.Background()); err != nil {
 		log.Fatalf("Failed to setup command pipeline: %v", err)
 	}
 
+	// Initialize and parse the previously stored server and backup statuses.
 	if err := common.InitStatuses(); err != nil {
 		log.Fatalf("Failed to initialize status maps: %v", err)
 	}
 	log.Printf("ServerStatus: %+v", common.ServerStatuses)
 	log.Printf("BackupStatus: %+v", common.BackupStatuses)
 
+	// Start to recover and monitor servers.
 	go recoverServers()
 	go writeStatus()
 
@@ -51,6 +56,8 @@ func main() {
 	select {}
 }
 
+// recoverServers attempts to recover any servers that aren't running, but should
+// be running.
 func recoverServers() {
 	ticker := time.NewTicker(time.Second)
 	done := make(chan bool)
@@ -125,6 +132,7 @@ func handleStatus() error {
 	return nil
 }
 
+// handleCrash attempts to bring back servers that are crashed or stopped.
 func handleCrash() error {
 	ctx := context.Background()
 	runningServers, err := server.GetRunningServers(ctx)

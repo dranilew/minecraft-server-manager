@@ -2,6 +2,7 @@
 package logger
 
 import (
+	"flag"
 	"log"
 	"os"
 )
@@ -9,9 +10,13 @@ import (
 var (
 	// loggers is the list of supported loggers.
 	loggers []*log.Logger
-	// stderrLogger is for debugging.
-	stderrLogger = log.New(os.Stderr, "", 0)
+	// debug indicates whether to print debug logs or not.
+	debug = flag.Bool("v", false, "Whether to log more than usual.")
 )
+
+func init() {
+	flag.Parse()
+}
 
 // Init initializes the loggers.
 func Init(tag string) error {
@@ -31,7 +36,9 @@ func Fatalf(message string, v ...any) {
 	os.Exit(1)
 }
 
-// Debug prints to the Stderr logger.
+// Debug prints only if Debug is set.
 func Debugf(message string, v ...any) {
-	stderrLogger.Printf(message, v...)
+	if *debug {
+		Printf(message, v...)
+	}
 }

@@ -6,8 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"log/syslog"
+	"os"
 	"slices"
 	"time"
 
@@ -21,11 +20,10 @@ import (
 
 func main() {
 	// Set up logger for syslog.
-	writer, err := syslog.New(syslog.LOG_INFO, "minecraft-server-manager")
-	if err != nil {
-		log.Fatal(err.Error())
+	if err := logger.Init("manager"); err != nil {
+		fmt.Printf("Failed to initialize loggers: %v\n", err)
+		os.Exit(1)
 	}
-	log.SetOutput(writer)
 
 	// Set up command monitoring pipeline for use with mcctl.
 	if err := monitor.Setup(context.Background()); err != nil {

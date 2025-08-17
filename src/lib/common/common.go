@@ -68,7 +68,7 @@ func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	statusFile := filepath.Join(*ModpackLocation, file)
-	logger.Printf("Reading status from file %q", statusFile)
+	logger.Debugf("Reading status from file %q", statusFile)
 	contentBytes, err := os.ReadFile(statusFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -76,7 +76,7 @@ func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 		}
 		return nil
 	}
-	logger.Printf("Got contents %s", string(contentBytes))
+	logger.Debugf("Got contents %s", string(contentBytes))
 	if err := json.Unmarshal(contentBytes, statusMap); err != nil {
 		return fmt.Errorf("failed to unmarshal %s file: %w", file, err)
 	}
@@ -106,7 +106,7 @@ func updateStatus(statusMap any, mu *sync.Mutex, file string) error {
 	if err := os.WriteFile(path, b, 0644); err != nil {
 		return err
 	}
-	logger.Printf("updated status to %s at %q", string(b), path)
+	logger.Debugf("updated status to %s at %q", string(b), path)
 	return nil
 }
 

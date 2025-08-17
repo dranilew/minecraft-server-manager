@@ -9,6 +9,8 @@ import (
 var (
 	// loggers is the list of supported loggers.
 	loggers []*log.Logger
+	// stderrLogger is for debugging.
+	stderrLogger = log.New(os.Stderr, "", 0)
 )
 
 // Init initializes the loggers.
@@ -27,4 +29,9 @@ func Printf(message string, v ...any) {
 func Fatalf(message string, v ...any) {
 	Printf(message, v...)
 	os.Exit(1)
+}
+
+// Debug prints to the Stderr logger.
+func Debugf(message string, v ...any) {
+	stderrLogger.Printf(message, v...)
 }

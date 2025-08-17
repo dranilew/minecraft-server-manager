@@ -63,15 +63,34 @@ func New() *cobra.Command {
 // createBackup creates a backup
 func createBackup(cmd *cobra.Command, args []string) error {
 	var err error
-	servers := args
+
+	// Get the list of potential servers.
+	potentialServers := args
 	if slices.Contains(args, "all") {
-		servers, err = server.AllServers(context.Background())
+		potentialServers, err = server.AllServers(context.Background())
 		if err != nil {
 			return fmt.Errorf("failed to get all servers: %v", err)
 		}
 	}
-	log.Printf("Creating backups for %v", servers)
-	return backup.Create(context.Background(), force, gcsBucket, servers...)
+
+	// Find out which servers actually need to be backed up.
+	servers := potentialServers
+	if !force {
+		servers = nil // Reset servers list since we're not forcing.
+		for _, server := range potentialServers {
+			if backup, ok := common.BackupStatuses[server]; ok && backup {
+				servers = append(servers, server)
+			}
+		}
+	}
+
+	// Log according to if we have any servers to backup.
+	if len(servers) > 0 {
+		log.Printf("Creating backups for %v", servers)
+		return backup.Create(context.Background(), force, gcsBucket, servers...)
+	}
+	log.Printf("No backups to make, skipping.")
+	return nil
 }
 
 // backupInfo prints a pretty version of the backup.lock file.

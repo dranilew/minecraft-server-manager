@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 	"github.com/dranilew/minecraft-server-manager/src/lib/status"
 )
@@ -111,7 +111,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 		return false, fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, string(exitErr.Stderr))
 	}
 	if err := os.Remove(backupFile); err != nil {
-		log.Printf("Failed to remove temporary zip file: %v", err)
+		logger.Printf("Failed to remove temporary zip file: %v", err)
 	}
 
 	// Notify that the backup has been created.

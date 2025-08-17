@@ -4,7 +4,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/run"
 )
 
@@ -87,7 +87,7 @@ func Notify(ctx context.Context, server string, message string) error {
 		return fmt.Errorf("failed to get running servers: %v", err)
 	}
 	if !slices.Contains(runningServers, server) {
-		log.Printf("Server %q is not running, skipping notification", server)
+		logger.Printf("Server %q is not running, skipping notification", server)
 	}
 	opts := run.Options{
 		Name: "screen",
@@ -113,7 +113,7 @@ func ForceSave(ctx context.Context, server string) error {
 		return fmt.Errorf("failed to get running servers: %v", err)
 	}
 	if !slices.Contains(runningServers, server) {
-		log.Printf("Server %q is not running, skipping notification", server)
+		logger.Printf("Server %q is not running, skipping notification", server)
 	}
 	opts := run.Options{
 		Name: "screen",
@@ -196,18 +196,18 @@ func Start(ctx context.Context, servers ...string) error {
 
 	var started bool
 	for _, server := range servers {
-		log.Printf("Starting server %q", server)
+		logger.Printf("Starting server %q", server)
 		if slices.Contains(runningServers, server) {
-			log.Printf("Server %q already running, skipping launch", server)
+			logger.Printf("Server %q already running, skipping launch", server)
 			continue
 		}
 
 		started = true
-		log.Printf("%q: Determining port for server...", server)
+		logger.Printf("%q: Determining port for server...", server)
 		port, isNew := determinePort(server)
 		common.ServerStatusesMu.Lock()
 		if isNew {
-			log.Printf("%q: Setting port to %d", server, port)
+			logger.Printf("%q: Setting port to %d", server, port)
 			if err := setPort(server, port); err != nil {
 				common.ServerStatusesMu.Unlock()
 				return fmt.Errorf("Failed to set port for server %q: %v", server, err)
@@ -217,7 +217,7 @@ func Start(ctx context.Context, servers ...string) error {
 				Port: port,
 			}
 		} else {
-			log.Printf("Got port %d for server %q", port, server)
+			logger.Printf("Got port %d for server %q", port, server)
 		}
 		common.ServerStatuses[server].ShouldRun = true
 		common.ServerStatuses[server].StartTime = time.Now()
@@ -241,7 +241,7 @@ func Start(ctx context.Context, servers ...string) error {
 		if _, err := run.WithContext(ctx, opts); err != nil {
 			return fmt.Errorf("Failed to start server %s: %v", server, err)
 		}
-		log.Printf("Started server %q from %q", server, entry)
+		logger.Printf("Started server %q from %q", server, entry)
 	}
 	if started {
 		// Only update status if a new server is started.
@@ -292,7 +292,7 @@ func Stop(ctx context.Context, servers ...string) error {
 				ExecMode:   run.ExecModeDetach,
 			}
 			if _, err := run.WithContext(ctx, opts); err != nil {
-				log.Printf("Failed to stop server %q: %v", server, err)
+				logger.Printf("Failed to stop server %q: %v", server, err)
 				return
 			}
 
@@ -300,7 +300,7 @@ func Stop(ctx context.Context, servers ...string) error {
 			// Otherwise, we wait until a specified timeout before force-killing the server.
 			currentServers, err := GetRunningServers(ctx)
 			if err != nil {
-				log.Printf("failed to get currently running servers: %v", err)
+				logger.Printf("failed to get currently running servers: %v", err)
 				return
 			}
 			var counter int
@@ -309,11 +309,11 @@ func Stop(ctx context.Context, servers ...string) error {
 				counter++
 				currentServers, err = GetRunningServers(ctx)
 				if err != nil {
-					log.Printf("failed to get currently running servers: %v", err)
+					logger.Printf("failed to get currently running servers: %v", err)
 				}
 			}
 			if counter >= killServerTimeout {
-				log.Printf("Server did not exit within timeout, force-killing...")
+				logger.Printf("Server did not exit within timeout, force-killing...")
 				Kill(ctx, false, server)
 			}
 
@@ -397,7 +397,7 @@ func Recover(ctx context.Context, server string) error {
 			common.ServerStatusesMu.Lock()
 			common.ServerStatuses[server].Recovering = true
 			common.ServerStatusesMu.Unlock()
-			log.Printf("Crash detected for server %q", server)
+			logger.Printf("Crash detected for server %q", server)
 			if err := Kill(ctx, true, server); err != nil {
 				return fmt.Errorf("failed to kill crashed server %q: %v", server, err)
 			}

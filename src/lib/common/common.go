@@ -6,11 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 )
 
 func init() {
@@ -67,7 +68,7 @@ func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	statusFile := filepath.Join(*ModpackLocation, file)
-	log.Printf("Reading status from file %q", statusFile)
+	logger.Printf("Reading status from file %q", statusFile)
 	contentBytes, err := os.ReadFile(statusFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -75,7 +76,7 @@ func initStatus(statusMap any, mu *sync.Mutex, file string) error {
 		}
 		return nil
 	}
-	log.Printf("Got contents %s", string(contentBytes))
+	logger.Printf("Got contents %s", string(contentBytes))
 	if err := json.Unmarshal(contentBytes, statusMap); err != nil {
 		return fmt.Errorf("failed to unmarshal %s file: %w", file, err)
 	}
@@ -105,7 +106,7 @@ func updateStatus(statusMap any, mu *sync.Mutex, file string) error {
 	if err := os.WriteFile(path, b, 0644); err != nil {
 		return err
 	}
-	log.Printf("updated status to %s at %q", string(b), path)
+	logger.Printf("updated status to %s at %q", string(b), path)
 	return nil
 }
 

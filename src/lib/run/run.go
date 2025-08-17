@@ -9,10 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 )
 
 var (
@@ -204,7 +205,7 @@ func scanPipe(pipe io.ReadCloser, streamOut chan string) {
 	defer func() {
 		// Error is not really actionable, just log it.
 		if err := pipe.Close(); err != nil && !errors.Is(err, os.ErrClosed) && !errors.Is(errors.Unwrap(err), os.ErrClosed) {
-			log.Printf("Failed to close pipe: %v", err)
+			logger.Printf("Failed to close pipe: %v", err)
 		}
 		close(streamOut)
 	}()

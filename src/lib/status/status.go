@@ -4,9 +4,9 @@ package status
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/run"
 	"github.com/mcstatus-io/mcutil/v4/status"
 )
@@ -31,7 +31,7 @@ func init() {
 	}
 	out, err := run.WithContext(context.Background(), opts)
 	if err != nil {
-		log.Fatalf("Failed to get server IP: %v", err)
+		logger.Fatalf("Failed to get server IP: %v", err)
 	}
 	ServerIP = ipRegex.FindString(out.Output)
 }

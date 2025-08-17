@@ -5,20 +5,21 @@ package main
 
 import (
 	"context"
-	"log"
-	"log/syslog"
+	"fmt"
+	"os"
 
 	"github.com/dranilew/minecraft-server-manager/src/cmd/mcctl/commands/backup"
 	"github.com/dranilew/minecraft-server-manager/src/cmd/mcctl/commands/server"
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/spf13/cobra"
 )
 
 func main() {
-	writer, err := syslog.New(syslog.LOG_INFO, "mcctl")
-	if err != nil {
-		log.Fatal(err.Error())
+	if err := logger.Init("mcctl"); err != nil {
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
 	}
-	log.SetOutput(writer)
+
 	ctx := context.Background()
 	rootCmd := &cobra.Command{
 		Use:   "mcctl",
@@ -29,6 +30,6 @@ func main() {
 	rootCmd.AddCommand(backup.New())
 	rootCmd.AddCommand(server.New())
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		log.Fatalf("Failed to execute: %v", err)
+		logger.Fatalf("Failed to execute: %v", err)
 	}
 }

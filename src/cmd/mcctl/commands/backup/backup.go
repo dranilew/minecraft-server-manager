@@ -5,7 +5,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 	"github.com/spf13/cobra"
 )
@@ -86,10 +86,10 @@ func createBackup(cmd *cobra.Command, args []string) error {
 
 	// Log according to if we have any servers to backup.
 	if len(servers) > 0 {
-		log.Printf("Creating backups for %v", servers)
+		logger.Printf("Creating backups for %v", servers)
 		return backup.Create(context.Background(), force, gcsBucket, servers...)
 	}
-	log.Printf("No backups to make, skipping.")
+	logger.Printf("No backups to make, skipping.")
 	return nil
 }
 

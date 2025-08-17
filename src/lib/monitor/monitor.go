@@ -7,13 +7,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 )
 
@@ -49,7 +49,7 @@ func init() {
 func Setup(ctx context.Context) error {
 	timeout, err := time.ParseDuration(*timeoutString)
 	if err != nil {
-		log.Fatalf("Invalid timeout string %s", *timeoutString)
+		logger.Fatalf("Invalid timeout string %s", *timeoutString)
 	}
 	monitor.srv = &Server{
 		pipe:    *pipe,
@@ -66,7 +66,7 @@ func Setup(ctx context.Context) error {
 func Close(context.Context) {
 	if monitor.srv != nil {
 		if err := monitor.srv.close(); err != nil {
-			log.Printf("error closing monitor: %v", err)
+			logger.Printf("error closing monitor: %v", err)
 		}
 		monitor.srv = nil
 	}
@@ -131,7 +131,7 @@ func (s *Server) start(ctx context.Context) error {
 				if errors.Is(err, net.ErrClosed) {
 					break
 				}
-				log.Printf("error on connection to pipe %s: %v", s.pipe, err)
+				logger.Printf("error on connection to pipe %s: %v", s.pipe, err)
 				continue
 			}
 			// Handle the connection.
@@ -140,7 +140,7 @@ func (s *Server) start(ctx context.Context) error {
 
 				deadline := time.Now().Add(s.timeout)
 				if err := conn.SetDeadline(deadline); err != nil {
-					log.Printf("could not set deadline on command request: %v", err)
+					logger.Printf("could not set deadline on command request: %v", err)
 					return
 				}
 
@@ -148,14 +148,14 @@ func (s *Server) start(ctx context.Context) error {
 				if !ok {
 					return
 				}
-				log.Printf("Received command request: %s", string(message))
+				logger.Printf("Received command request: %s", string(message))
 				exeErr := NewExecutionError(handleMessage(message))
 				b, err := json.Marshal(exeErr)
 				if err != nil {
-					log.Printf("Failed to marshal execution error: %v", err)
+					logger.Printf("Failed to marshal execution error: %v", err)
 				}
 				if n, err := conn.Write(b); err != nil || n != len(b) {
-					log.Printf("Failed to write to connection on pipe %q: %v", s.pipe, err)
+					logger.Printf("Failed to write to connection on pipe %q: %v", s.pipe, err)
 				}
 			}(conn)
 		}

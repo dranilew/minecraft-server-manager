@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/monitor"
 	"github.com/dranilew/minecraft-server-manager/src/lib/run"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
@@ -28,15 +29,15 @@ func main() {
 
 	// Set up command monitoring pipeline for use with mcctl.
 	if err := monitor.Setup(context.Background()); err != nil {
-		log.Fatalf("Failed to setup command pipeline: %v", err)
+		logger.Fatalf("Failed to setup command pipeline: %v", err)
 	}
 
 	// Initialize and parse the previously stored server and backup statuses.
 	if err := common.InitStatuses(); err != nil {
-		log.Fatalf("Failed to initialize status maps: %v", err)
+		logger.Fatalf("Failed to initialize status maps: %v", err)
 	}
-	log.Printf("ServerStatus: %+v", common.ServerStatuses)
-	log.Printf("BackupStatus: %+v", common.BackupStatuses)
+	logger.Printf("ServerStatus: %+v", common.ServerStatuses)
+	logger.Printf("BackupStatus: %+v", common.BackupStatuses)
 
 	// Start to recover and monitor servers.
 	go recoverServers()
@@ -50,7 +51,7 @@ func main() {
 	}
 
 	if _, err := run.WithContext(context.Background(), opts); err != nil {
-		log.Fatalf("Failed to notify systemd manager is ready: %v", err)
+		logger.Fatalf("Failed to notify systemd manager is ready: %v", err)
 	}
 
 	select {}
@@ -111,7 +112,7 @@ func handleStatus() error {
 				continue
 			}
 			common.ServerStatusesMu.Unlock()
-			log.Printf("Error fetching %q server status: %v", srv, err)
+			logger.Printf("Error fetching %q server status: %v", srv, err)
 			continue
 		}
 		common.ServerStatusesMu.Unlock()

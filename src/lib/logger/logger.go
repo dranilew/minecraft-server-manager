@@ -10,8 +10,8 @@ import (
 var (
 	// loggers is the list of supported loggers.
 	loggers []*log.Logger
-	// debug indicates whether to print debug logs or not.
-	debug = flag.Bool("v", false, "Whether to log more than usual.")
+	// Debug indicates whether to print Debug logs or not.
+	Debug = flag.Bool("v", false, "Whether to log more than usual.")
 )
 
 func init() {
@@ -38,7 +38,7 @@ func Fatalf(message string, v ...any) {
 
 // Debug prints only if Debug is set.
 func Debugf(message string, v ...any) {
-	if *debug {
+	if *Debug {
 		Printf(message, v...)
 	}
 }

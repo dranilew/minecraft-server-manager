@@ -15,11 +15,6 @@ import (
 )
 
 func main() {
-	if err := logger.Init("mcctl"); err != nil {
-		fmt.Printf("Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
-
 	ctx := context.Background()
 	rootCmd := &cobra.Command{
 		Use:   "mcctl",
@@ -27,8 +22,16 @@ func main() {
 		Long:  "Minecraft server management CLI used to trigger backups.",
 	}
 
+	rootCmd.PersistentFlags().BoolVar(logger.Debug, "v", false, "Whether to print more logs")
+	rootCmd.ParseFlags([]string{"v"})
+
 	rootCmd.AddCommand(backup.New())
 	rootCmd.AddCommand(server.New())
+
+	if err := logger.Init("mcctl"); err != nil {
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		logger.Fatalf("Failed to execute: %v", err)
 	}

@@ -124,9 +124,15 @@ func ExtraScripts(ctx context.Context, server string) error {
 		return fmt.Errorf("failed to read yaml file: %v", err)
 	}
 
+	conf, ok := currentConfigurations[server]
+	if !ok {
+		logger.Debugf("Configuration for server %q not found, skipping", server)
+		return nil
+	}
+
 	// Run all the scripts configured by the configuration file.
 	var errs []error
-	for _, script := range currentConfigurations[server].Scripts {
+	for _, script := range conf.Scripts {
 		serverDir := common.ServerDirectory(server)
 		scriptPath := filepath.Join(serverDir, extraScriptsDir, script.Name)
 

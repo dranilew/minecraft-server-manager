@@ -19,8 +19,12 @@ import (
 )
 
 func main() {
+<<<<<<< Updated upstream
 	// Set up logger for syslog.
 	if err := logger.Init("manager"); err != nil {
+=======
+	if err := logger.Init("minecraft-server-manager"); err != nil {
+>>>>>>> Stashed changes
 		fmt.Printf("Failed to initialize loggers: %v\n", err)
 		os.Exit(1)
 	}

@@ -174,9 +174,6 @@ func setPort(server string, port int) error {
 	// Replace the proper lines in the server.properties file.
 	var resLines []string
 	for _, line := range lines {
-		if strings.HasPrefix(line, "query.port") {
-			line = fmt.Sprintf("query.port=%d", port)
-		}
 		if strings.HasPrefix(line, "server-port") {
 			line = fmt.Sprintf("server-port=%d", port)
 		}

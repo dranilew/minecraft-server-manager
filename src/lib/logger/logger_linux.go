@@ -3,19 +3,22 @@
 package logger
 
 import (
+	"io"
 	"log"
 	"log/syslog"
-	"os"
 )
 
-func initPlatformLogger(tag string) error {
+func initPlatformLogger(tag string, extraLoggers []io.Writer) error {
 	syslogWriter, err := syslog.New(syslog.LOG_INFO, tag)
 	if err != nil {
 		return err
 	}
 	syslogLogger := log.New(syslogWriter, "", 0)
-	stdoutLogger := log.New(os.Stdout, "", 0)
+	loggers = append(loggers, syslogLogger)
 
-	loggers = []*log.Logger{syslogLogger, stdoutLogger}
+	for _, l := range extraLoggers {
+		loggers = append(loggers, log.New(l, "", 0))
+	}
+
 	return nil
 }

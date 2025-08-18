@@ -3,6 +3,7 @@ package logger
 
 import (
 	"flag"
+	"io"
 	"log"
 	"os"
 )
@@ -19,8 +20,8 @@ func init() {
 }
 
 // Init initializes the loggers.
-func Init(tag string) error {
-	return initPlatformLogger(tag)
+func Init(tag string, extraLoggers ...io.Writer) error {
+	return initPlatformLogger(tag, extraLoggers)
 }
 
 // Print prints to each of the loggers.

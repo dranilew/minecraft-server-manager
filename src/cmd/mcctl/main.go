@@ -28,7 +28,7 @@ func main() {
 	rootCmd.AddCommand(backup.New())
 	rootCmd.AddCommand(server.New())
 
-	if err := logger.Init("mcctl"); err != nil {
+	if err := logger.Init("mcctl", os.Stdout); err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}

@@ -96,7 +96,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 	defer zipWriter.Close()
 
 	// Copy all files in the world directory into the zip file.
-	if err := copyToZip(zipWriter, worldDir, ""); err != nil {
+	if err := copyToZip(zipWriter, worldDir, "world"); err != nil {
 		return false, fmt.Errorf("failed to copy world files to zip folder: %v", err)
 	}
 

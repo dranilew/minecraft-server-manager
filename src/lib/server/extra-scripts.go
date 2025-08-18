@@ -138,7 +138,7 @@ func ExtraScripts(ctx context.Context, server string) error {
 
 		// Only run when its next scheduled time to run has passed.
 		if time.Since(script.LastRun) >= script.Interval {
-			logger.Debugf("Running scripts %s for server %s", script.Name, server)
+			logger.Debugf("Running script %s from %q for server %s", script.Name, scriptPath, server)
 			script.LastRun = time.Now()
 			opts := run.Options{
 				Name:       scriptPath,

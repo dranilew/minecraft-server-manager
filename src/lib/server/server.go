@@ -67,14 +67,14 @@ func GetRunningServers(ctx context.Context) ([]string, error) {
 }
 
 // AllServers returns all possible servers, located in the base server directory.
-func AllServers(ctx context.Context) ([]string, error) {
+func AllServers() ([]string, error) {
 	dirEntries, err := os.ReadDir(*common.ModpackLocation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read modpack directory: %v", err)
 	}
 	var res []string
 	for _, entry := range dirEntries {
-		if entry.IsDir() {
+		if entry.IsDir() { // Only care about directories.
 			res = append(res, entry.Name())
 		}
 	}
@@ -264,9 +264,7 @@ func Stop(ctx context.Context, servers ...string) error {
 	var wg sync.WaitGroup
 	for _, server := range servers {
 		// Stop/kill each specified server in their own go routines.
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// If the server is already not running, we do nothing.
 			if !slices.Contains(runningServers, server) {
 				return
@@ -322,7 +320,7 @@ func Stop(ctx context.Context, servers ...string) error {
 			common.BackupStatusesMu.Lock()
 			common.BackupStatuses[server] = true
 			common.BackupStatusesMu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 	if stopped {

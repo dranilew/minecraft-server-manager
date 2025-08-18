@@ -67,7 +67,7 @@ func createBackup(cmd *cobra.Command, args []string) error {
 	// Get the list of potential servers.
 	potentialServers := args
 	if slices.Contains(args, "all") {
-		potentialServers, err = server.AllServers(context.Background())
+		potentialServers, err = server.AllServers()
 		if err != nil {
 			return fmt.Errorf("failed to get all servers: %v", err)
 		}

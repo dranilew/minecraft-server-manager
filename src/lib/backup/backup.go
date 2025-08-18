@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -68,6 +69,9 @@ func shouldBackup(force bool, srv string) bool {
 
 // createBackup creates a backup for the specific server.
 func createBackup(ctx context.Context, force bool, srv, dest string) (bool, error) {
+	if dest == "" || !strings.HasPrefix(dest, "gs://") {
+		return false, fmt.Errorf("invalid destination: destination should not be empty and should be a valid gs:// URL.")
+	}
 	if !shouldBackup(force, srv) {
 		return false, nil
 	}
@@ -110,6 +114,8 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 		}
 		return false, fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, string(exitErr.Stderr))
 	}
+
+	// Clean up the backup file after uploading to ensure we don't consume too much disk space.
 	if err := os.Remove(backupFile); err != nil {
 		logger.Printf("Failed to remove temporary zip file: %v", err)
 	}

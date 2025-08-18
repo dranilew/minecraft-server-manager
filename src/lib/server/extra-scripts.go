@@ -73,6 +73,7 @@ func readYaml(server string) error {
 		logger.Debugf("Extra scripts configuration not found for %q, skipping", server)
 		return nil
 	}
+	logger.Debugf("Found extra script configuration for server %q", server)
 
 	// Unmarshal the contents.
 	var conf configuration

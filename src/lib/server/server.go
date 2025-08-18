@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -374,7 +375,10 @@ func Recover(ctx context.Context, server string) error {
 	crashReportsLoc := filepath.Join(common.ServerDirectory(server), crashReportsDir)
 	reports, err := os.ReadDir(crashReportsLoc)
 	if err != nil {
-		return err
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
 	}
 	for _, report := range reports {
 		if report.IsDir() {

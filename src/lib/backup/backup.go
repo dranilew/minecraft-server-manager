@@ -75,7 +75,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 	if !shouldBackup(force, srv) {
 		return false, nil
 	}
-	worldDir := filepath.Join(common.ServerDirectory(srv), "world")
+	serverDir := common.ServerDirectory(srv)
 	currTime := time.Now().Format(time.RFC3339)
 
 	// Force save the server, and notify about the backup.
@@ -100,7 +100,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 	defer zipWriter.Close()
 
 	// Copy all files in the world directory into the zip file.
-	if err := copyToZip(zipWriter, worldDir, "world"); err != nil {
+	if err := copyToZip(zipWriter, serverDir, "world"); err != nil {
 		return false, fmt.Errorf("failed to copy world files to zip folder: %v", err)
 	}
 

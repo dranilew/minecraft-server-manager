@@ -5,10 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"slices"
-	"strconv"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
 	"github.com/dranilew/minecraft-server-manager/src/lib/monitor"
@@ -81,33 +78,7 @@ func serverInfo(*cobra.Command, []string) error {
 		return fmt.Errorf("error initializing server status map: %v", err)
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 5, 1, 2, ' ', 0)
-	var result []string
-	result = append(result, "NAME\tPORT\tSHOULDRUN\tSTARTTIME")
-
-	// Get the slice of all server statuses.
-	var statuses []*common.ServerStatus
-	common.ServerStatusesMu.Lock()
-	for _, v := range common.ServerStatuses {
-		statuses = append(statuses, v)
-	}
-	common.ServerStatusesMu.Unlock()
-
-	// Sort the statuses by their port number.
-	slices.SortFunc(statuses, func(a *common.ServerStatus, b *common.ServerStatus) int {
-		return a.Port - b.Port
-	})
-
-	// Formulate the output.
-	for _, v := range statuses {
-		lineFields := []string{v.Name, strconv.Itoa(v.Port), strconv.FormatBool(v.ShouldRun), v.StartTime.String()}
-		line := strings.Join(lineFields, "\t")
-		result = append(result, line)
-	}
-
-	// Print the output.
-	fmt.Fprintln(w, strings.Join(result, "\n"))
-	w.Flush()
+	server.GetInfo(os.Stdout)
 	return nil
 }
 

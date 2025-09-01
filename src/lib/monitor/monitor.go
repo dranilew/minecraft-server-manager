@@ -24,40 +24,40 @@ const (
 var (
 	monitor       = &Monitor{}
 	timeoutString = flag.String("server-timeout", "5m", "The default timeout for command monitoring. This should be a Golang-parseable time duration string.")
-	pipe          = flag.String("pipe", "/etc/minecraft/manager", "The pipe location for monitoring.")
+	monitorPipe   = flag.String("monitor-pipe", "/etc/minecraft/manager", "The pipe location for monitoring.")
 )
 
-// Server is the server to which commands are posted.
-type Server struct {
+// MonitorServer is the server to which commands are posted.
+type MonitorServer struct {
 	pipe    string
 	timeout time.Duration
-	srv     net.Listener
+	lc      net.Listener
 	monitor *Monitor
 }
 
 // Monitor is the pipe monitor, which listens for new commands and executes
 // actions according to what is received through the pipe.
 type Monitor struct {
-	srv *Server
+	srv *MonitorServer
 }
 
 func init() {
 	flag.Parse()
 }
 
-// Setup starts an internally managed command server.
-func Setup(ctx context.Context) error {
+// SetupMonitor starts an internally managed command server.
+func SetupMonitor(ctx context.Context) error {
 	timeout, err := time.ParseDuration(*timeoutString)
 	if err != nil {
 		logger.Fatalf("Invalid timeout string %s", *timeoutString)
 	}
-	monitor.srv = &Server{
-		pipe:    *pipe,
+	monitor.srv = &MonitorServer{
+		pipe:    *monitorPipe,
 		timeout: timeout,
 		monitor: monitor,
 	}
 	if err := monitor.srv.start(ctx); err != nil {
-		return fmt.Errorf("Failed to start monitor server: %v", err)
+		return fmt.Errorf("failed to start monitor server: %v", err)
 	}
 	return nil
 }
@@ -97,13 +97,13 @@ func readFromConn(conn net.Conn) ([]byte, bool) {
 }
 
 // start starts a listener on the given pipe.
-func (s *Server) start(ctx context.Context) error {
-	if s.srv != nil {
+func (s *MonitorServer) start(ctx context.Context) error {
+	if s.lc != nil {
 		return fmt.Errorf("already listening on pipe %q", s.pipe)
 	}
 
-	if _, err := os.Stat(*pipe); err == nil {
-		if err := os.Remove(*pipe); err != nil {
+	if _, err := os.Stat(*monitorPipe); err == nil {
+		if err := os.Remove(*monitorPipe); err != nil {
 			return fmt.Errorf("error cleaning up previous pipe: %v", err)
 		}
 	}
@@ -112,11 +112,11 @@ func (s *Server) start(ctx context.Context) error {
 	}
 
 	// Create the listener.
-	srv, err := listen(ctx, *pipe)
+	srv, err := listen(ctx, *monitorPipe)
 	if err != nil {
 		return err
 	}
-	s.srv = srv
+	s.lc = srv
 
 	// Start accepting and handling connections in a separate thread.
 	go func() {
@@ -164,31 +164,32 @@ func (s *Server) start(ctx context.Context) error {
 }
 
 // Close signals the server to stop listening for commands and stop waiting on listen.
-func (s *Server) close() error {
-	if s.srv != nil {
-		return s.srv.Close()
+func (s *MonitorServer) close() error {
+	if s.lc != nil {
+		return s.lc.Close()
 	}
 	return nil
 }
 
 // handleMessage handles the request received from the connection.
-func handleMessage(req []byte) error {
+func handleMessage(req []byte) (string, error) {
 	ctx := context.Background()
 	reqString := string(req)
 	fields := strings.Fields(reqString)
 	switch fields[0] {
 	case "server":
+		servers := fields[2:]
 		switch fields[1] {
 		case "stop":
-			return server.Stop(ctx, fields[2:]...)
+			return fmt.Sprintf("Stopped servers %v", servers), server.Stop(ctx, servers...)
 		case "start":
-			return server.Start(ctx, fields[2:]...)
+			return fmt.Sprintf("Started servers %v", servers), server.Start(ctx, servers...)
 		case "restart":
-			return server.Restart(ctx, fields[2:]...)
+			return fmt.Sprintf("Restarted servers %v", servers), server.Restart(ctx, servers...)
 		default:
-			return fmt.Errorf("unknown server request: %v", fields[1])
+			return "", fmt.Errorf("unknown server request: %v", fields[1])
 		}
 	default:
-		return fmt.Errorf("unknown request: %v", fields[0])
+		return "", fmt.Errorf("unknown request: %v", fields[0])
 	}
 }

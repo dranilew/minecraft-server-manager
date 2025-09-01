@@ -5,12 +5,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"text/tabwriter"
 	"time"
 
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
@@ -412,4 +415,34 @@ func Recover(ctx context.Context, server string) error {
 		}
 	}
 	return nil
+}
+
+func GetInfo(out io.Writer) {
+	w := tabwriter.NewWriter(out, 5, 1, 2, ' ', 0)
+	var result []string
+	result = append(result, "NAME\tPORT\tSHOULDRUN\tSTARTTIME")
+
+	// Get the slice of all server statuses.
+	var statuses []*common.ServerStatus
+	common.ServerStatusesMu.Lock()
+	for _, v := range common.ServerStatuses {
+		statuses = append(statuses, v)
+	}
+	common.ServerStatusesMu.Unlock()
+
+	// Sort the statuses by their port number.
+	slices.SortFunc(statuses, func(a *common.ServerStatus, b *common.ServerStatus) int {
+		return a.Port - b.Port
+	})
+
+	// Formulate the output.
+	for _, v := range statuses {
+		lineFields := []string{v.Name, strconv.Itoa(v.Port), strconv.FormatBool(v.ShouldRun), v.StartTime.String()}
+		line := strings.Join(lineFields, "\t")
+		result = append(result, line)
+	}
+
+	// Print the output.
+	fmt.Fprintln(w, strings.Join(result, "\n"))
+	w.Flush()
 }

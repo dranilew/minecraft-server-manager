@@ -43,7 +43,7 @@ func main() {
 	}
 
 	// Set up command monitoring pipeline for use with mcctl.
-	if err := monitor.Setup(context.Background()); err != nil {
+	if err := monitor.SetupMonitor(context.Background()); err != nil {
 		logger.Fatalf("Failed to setup command pipeline: %v", err)
 	}
 

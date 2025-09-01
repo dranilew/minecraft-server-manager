@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"time"
+
+	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 )
 
 // Response represents a response written on the pipe.
@@ -41,9 +43,10 @@ var (
 )
 
 // NewExecutionError returned a new ExecutionError response.
-func NewExecutionError(err error) Response {
+// Msg is used in the case of a success.
+func NewExecutionError(msg string, err error) Response {
 	if err == nil {
-		return Response{Status: 0}
+		return Response{Status: 0, Message: msg}
 	}
 	return Response{
 		Status:  103,
@@ -53,16 +56,19 @@ func NewExecutionError(err error) Response {
 
 func (r Response) Error() error {
 	if r.Status == 0 {
+		if r.Message != "" {
+			logger.Printf("%s\n", r.Message)
+		}
 		return nil
 	}
-	return fmt.Errorf("Exit status %d: %s", r.Status, r.Message)
+	return fmt.Errorf("exit status %d: %s", r.Status, r.Message)
 }
 
 // SendCommand sends a command to the command socket.
 func SendCommand(ctx context.Context, req []byte) error {
 	// Connect to the command socket.
 	var dialer net.Dialer
-	conn, err := dialer.DialContext(ctx, "unix", *pipe)
+	conn, err := dialer.DialContext(ctx, "unix", *monitorPipe)
 	if err != nil {
 		return fmt.Errorf("failed to dial pipe: %v", err)
 	}

@@ -8,18 +8,31 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
 	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 	"github.com/dranilew/minecraft-server-manager/src/lib/status"
 )
+
+var (
+	// storageClient is the client used to interact with GCS.
+	storageClient *storage.Client
+)
+
+func init() {
+	var err error
+	storageClient, err = storage.NewClient(context.Background())
+	if err != nil {
+		panic(err)
+	}
+}
 
 // Create creates a backup for all servers in the list.
 // dest is the destination Google Cloud storage location.
@@ -69,9 +82,15 @@ func shouldBackup(force bool, srv string) bool {
 
 // createBackup creates a backup for the specific server.
 func createBackup(ctx context.Context, force bool, srv, dest string) (bool, error) {
-	if dest == "" || !strings.HasPrefix(dest, "gs://") {
-		return false, fmt.Errorf("invalid destination: destination should not be empty and should be a valid gs:// URL.")
+	bucketRegex, err := regexp.Compile("gs://([^/]+)(.*)")
+	if err != nil {
+		return false, fmt.Errorf("failed to compile bucket regex: %v", err)
 	}
+	var match []string
+	if match = bucketRegex.FindStringSubmatch(dest); len(match) == 0 {
+		return false, fmt.Errorf("invalid destination %q: destination should not be empty and should be a valid gs:// URL", dest)
+	}
+
 	if !shouldBackup(force, srv) {
 		return false, nil
 	}
@@ -97,22 +116,29 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 
 	// Create the zip file.
 	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
 
 	// Copy all files in the world directory into the zip file.
 	if err := copyToZip(zipWriter, serverDir, "world"); err != nil {
 		return false, fmt.Errorf("failed to copy world files to zip folder: %v", err)
 	}
 
-	fullDestination := fmt.Sprintf("%s/%s/%s", dest, srv, backupName(srv))
-	fmt.Printf("Zip file created at %s, uploading to %s\n", backupFile, fullDestination)
-	// Upload to the storage bucket if a URL is provided.
-	if err := exec.Command("gcloud", "storage", "cp", backupFile, fullDestination).Run(); err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if !ok {
-			return false, fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, err)
-		}
-		return false, fmt.Errorf("failed to upload %q to %q: %v", backupFile, fullDestination, string(exitErr.Stderr))
+	// First match is the name of the bucket.
+	bucketHandle := storageClient.Bucket(match[1])
+	// Second match is the directory.
+	objectHandle := bucketHandle.Object(filepath.Join(match[2], backupName(srv)))
+
+	// Create an object writer to upload the file to GCS.
+	objectWriter := objectHandle.NewWriter(ctx)
+	defer objectWriter.Close()
+
+	// Write the zip file to the writer.
+	if _, err := io.Copy(objectWriter, zipFile); err != nil {
+		return false, fmt.Errorf("failed to copy zip file contents to the storage object")
+	}
+
+	// Flush the writer to Cloud Storage.
+	if _, err := objectWriter.Flush(); err != nil {
+		return false, fmt.Errorf("failed to flush %q to GCS: %v", backupFile, err)
 	}
 
 	// Clean up the backup file after uploading to ensure we don't consume too much disk space.
@@ -127,10 +153,10 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 	// not running when Online returns an error. Also handle case where a server isn't
 	// registered yet.
 	common.BackupStatusesMu.Lock()
-  defer func() {
-    common.BackupStatusesMu.Unlock()
-    common.UpdateBackupStatus()
-  }()
+	defer func() {
+		common.BackupStatusesMu.Unlock()
+		common.UpdateBackupStatus()
+	}()
 	if common.ServerStatuses[srv] == nil {
 		common.BackupStatuses[srv] = false
 		return true, nil

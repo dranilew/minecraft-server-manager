@@ -111,7 +111,8 @@ func serverInfo(*cobra.Command, []string) error {
 	return nil
 }
 
+// sendRequest sends a request to the command socket.
 func sendRequest(cmd *cobra.Command, args []string) error {
-	reqArgs := append([]string{cmd.Parent().Name(), cmd.Name()}, args...)
+	reqArgs := append([]string{"server", cmd.Name()}, args...)
 	return monitor.SendCommand(context.Background(), []byte(strings.Join(reqArgs, " ")))
 }

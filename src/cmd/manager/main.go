@@ -152,6 +152,14 @@ func handleStatus() error {
 	var errs []error
 	var changed bool
 	for _, srv := range runningServers {
+		// Ignore if the server shouldn't be running.
+		common.ServerStatusesMu.Lock()
+		if !common.ServerStatuses[srv].ShouldRun {
+			common.ServerStatusesMu.Unlock()
+			continue
+		}
+		common.ServerStatusesMu.Unlock()
+
 		// Get the server's previous status. If it doesn't exist, then it isn't
 		// registered, so ignore it.
 		common.ServerStatusesMu.Lock()

@@ -130,7 +130,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
   defer func() {
     common.BackupStatusesMu.Unlock()
     common.UpdateBackupStatus()
-  }
+  }()
 	if common.ServerStatuses[srv] == nil {
 		common.BackupStatuses[srv] = false
 		return true, nil

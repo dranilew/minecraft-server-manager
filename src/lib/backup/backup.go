@@ -127,7 +127,10 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 	// not running when Online returns an error. Also handle case where a server isn't
 	// registered yet.
 	common.BackupStatusesMu.Lock()
-	defer common.BackupStatusesMu.Unlock()
+  defer func() {
+    common.BackupStatusesMu.Unlock()
+    common.UpdateBackupStatus()
+  }
 	if common.ServerStatuses[srv] == nil {
 		common.BackupStatuses[srv] = false
 		return true, nil

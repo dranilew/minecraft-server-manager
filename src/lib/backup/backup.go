@@ -102,11 +102,11 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 	server.ForceSave(ctx, srv)
 
 	// Create a temporary file for zipping
-	backupFile := filepath.Join(os.TempDir(), fmt.Sprintf("%s-*.zip", srv))
-	zipFile, err := os.Create(backupFile)
+	zipFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.zip", srv))
 	if err != nil {
-		return false, fmt.Errorf("failed to create zip file %q: %v", backupFile, err)
+		return false, fmt.Errorf("failed to create zip file for server %q: %v", srv, err)
 	}
+	backupFile := zipFile.Name()
 
 	// Let the zipfile be readable by others.
 	if err := zipFile.Chmod(0644); err != nil {
@@ -127,7 +127,7 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 
 	// First match is the name of the bucket.
 	// Second match is the destination folder.
-	objectWriter := storageClient.Bucket(match[1]).Object(filepath.Join(match[2], backupName(srv))).NewWriter(ctx)
+	objectWriter := storageClient.Bucket(match[1]).Object(filepath.Join(match[2], srv, backupName(srv))).NewWriter(ctx)
 
 	// Write the zip file to the writer. We re-open the zip file for reading
 	// to ensure its contents are up to date.

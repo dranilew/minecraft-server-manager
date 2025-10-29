@@ -208,11 +208,20 @@ func Start(ctx context.Context, servers ...string) error {
 			logger.Printf("%q: Setting port to %d", server, port)
 			if err := setPort(server, port); err != nil {
 				common.ServerStatusesMu.Unlock()
-				return fmt.Errorf("Failed to set port for server %q: %v", server, err)
+				return fmt.Errorf("failed to set port for server %q: %v", server, err)
 			}
 			common.ServerStatuses[server] = &common.ServerStatus{
 				Name: server,
 				Port: port,
+			}
+
+			// Create and update the backup status for the new server.
+			common.BackupStatusesMu.Lock()
+			common.BackupStatuses[server] = true
+			common.BackupStatusesMu.Unlock()
+
+			if err := common.UpdateBackupStatus(); err != nil {
+				return fmt.Errorf("failed to update backup status: %v", err)
 			}
 		} else {
 			logger.Printf("Got port %d for server %q", port, server)
@@ -237,14 +246,14 @@ func Start(ctx context.Context, servers ...string) error {
 			ExecMode:   run.ExecModeDetach,
 		}
 		if _, err := run.WithContext(ctx, opts); err != nil {
-			return fmt.Errorf("Failed to start server %s: %v", server, err)
+			return fmt.Errorf("failed to start server %s: %v", server, err)
 		}
 		logger.Printf("Started server %q from %q", server, entry)
 	}
 	if started {
 		// Only update status if a new server is started.
 		if err := common.UpdateServerStatus(); err != nil {
-			return fmt.Errorf("Failed to update server status: %v", err)
+			return fmt.Errorf("failed to update server status: %v", err)
 		}
 	}
 
@@ -255,7 +264,7 @@ func Start(ctx context.Context, servers ...string) error {
 func Stop(ctx context.Context, servers ...string) error {
 	runningServers, err := GetRunningServers(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to get currently running servers")
+		return fmt.Errorf("failed to get currently running servers")
 	}
 	var stopped bool
 	var wg sync.WaitGroup
@@ -332,10 +341,10 @@ func Stop(ctx context.Context, servers ...string) error {
 // Restart stops and starts all the specified servers.
 func Restart(ctx context.Context, servers ...string) error {
 	if err := Stop(ctx, servers...); err != nil {
-		return fmt.Errorf("Failed to stop servers: %v", err)
+		return fmt.Errorf("failed to stop servers: %v", err)
 	}
 	if err := Start(ctx, servers...); err != nil {
-		return fmt.Errorf("Failed to start servers: %v", err)
+		return fmt.Errorf("failed to start servers: %v", err)
 	}
 	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 )
@@ -175,20 +176,28 @@ func (s *Server) close() error {
 func handleMessage(req []byte) error {
 	ctx := context.Background()
 	reqString := string(req)
-	fields := strings.Fields(reqString)
-	switch fields[0] {
+
+	command, args, _ := strings.Cut(reqString, " ")
+	switch command {
 	case "server":
-		switch fields[1] {
+		fields := strings.Split(args, " ")
+		switch fields[0] {
 		case "stop":
-			return server.Stop(ctx, fields[2:]...)
+			return server.Stop(ctx, fields[1:]...)
 		case "start":
-			return server.Start(ctx, fields[2:]...)
+			return server.Start(ctx, fields[1:]...)
 		case "restart":
-			return server.Restart(ctx, fields[2:]...)
+			return server.Restart(ctx, fields[1:]...)
 		default:
-			return fmt.Errorf("unknown server request: %v", fields[1])
+			return fmt.Errorf("unknown server request: %v", fields[0])
 		}
+	case "backup":
+		var createReq backup.CreateRequest
+		if err := json.Unmarshal([]byte(args), &createReq); err != nil {
+			return fmt.Errorf("failed to unmarshal create request: %v", err)
+		}
+		return backup.Create(ctx, createReq)
 	default:
-		return fmt.Errorf("unknown request: %v", fields[0])
+		return fmt.Errorf("unknown request: %v", command)
 	}
 }

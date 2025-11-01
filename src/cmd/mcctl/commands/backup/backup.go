@@ -4,6 +4,7 @@ package backup
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"github.com/dranilew/minecraft-server-manager/src/lib/backup"
 	"github.com/dranilew/minecraft-server-manager/src/lib/common"
 	"github.com/dranilew/minecraft-server-manager/src/lib/logger"
+	"github.com/dranilew/minecraft-server-manager/src/lib/monitor"
 	"github.com/dranilew/minecraft-server-manager/src/lib/server"
 	"github.com/spf13/cobra"
 )
@@ -87,7 +89,22 @@ func createBackup(cmd *cobra.Command, args []string) error {
 	// Log according to if we have any servers to backup.
 	if len(servers) > 0 {
 		logger.Printf("Creating backups for %v", servers)
-		return backup.Create(context.Background(), force, gcsBucket, servers...)
+		// Formulate the command monitor message.
+		req := backup.CreateRequest{
+			Force:   force,
+			Bucket:  gcsBucket,
+			Servers: servers,
+		}
+		reqJson, err := json.Marshal(req)
+		if err != nil {
+			return fmt.Errorf("failed to marshal request %v: %v", req, err)
+		}
+		commandReq := strings.Join([]string{"backup", string(reqJson)}, " ")
+
+		// Send the backup request to the manager.
+		if err := monitor.SendCommand(context.Background(), []byte(commandReq)); err != nil {
+			return fmt.Errorf("failed to send backup command: %v", err)
+		}
 	}
 	logger.Printf("No backups to make, skipping.")
 	return nil

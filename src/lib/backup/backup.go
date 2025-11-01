@@ -21,6 +21,17 @@ import (
 	"github.com/dranilew/minecraft-server-manager/src/lib/status"
 )
 
+// CreateRequest is a request to create a backup.
+type CreateRequest struct {
+	// Force indicates whether to force a backup.
+	Force bool
+	// Bucket is the location to which to save the backups. These are written to
+	// $Bucket/$serverName/$serverName-backup.zip.
+	Bucket string
+	// Servers is the list of servers to make backups for.
+	Servers []string
+}
+
 var (
 	// storageClient is the client used to interact with GCS.
 	storageClient *storage.Client
@@ -36,15 +47,15 @@ func init() {
 
 // Create creates a backup for all servers in the list.
 // dest is the destination Google Cloud storage location.
-func Create(ctx context.Context, force bool, dest string, servers ...string) error {
+func Create(ctx context.Context, req CreateRequest) error {
 	var errs []error
 	var errsMu sync.Mutex
 	var wg sync.WaitGroup
 	var backupMade atomic.Bool
 
-	for _, srv := range servers {
+	for _, srv := range req.Servers {
 		wg.Go(func() {
-			backedUp, err := createBackup(ctx, force, srv, dest)
+			backedUp, err := createBackup(ctx, req.Force, srv, req.Bucket)
 			errsMu.Lock()
 			errs = append(errs, err)
 			errsMu.Unlock()

@@ -105,8 +105,9 @@ func createBackup(cmd *cobra.Command, args []string) error {
 		if err := monitor.SendCommand(context.Background(), []byte(commandReq)); err != nil {
 			return fmt.Errorf("failed to send backup command: %v", err)
 		}
+	} else {
+		logger.Printf("No backups to make, skipping.")
 	}
-	logger.Printf("No backups to make, skipping.")
 	return nil
 }
 

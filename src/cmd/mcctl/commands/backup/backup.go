@@ -26,6 +26,8 @@ var (
 	gcsBucket string
 	// force ignores any backup status locks and backs up the listed servers.
 	force bool
+	// skipUpload skips the upload task.
+	skipUpload bool
 )
 
 // New returns a new command for creating backups.
@@ -53,9 +55,10 @@ func New() *cobra.Command {
 	createCmd.Flags().StringVar(&gcsBucket, "bucket", "", "The GCS bucket and location to which to store backups. This should contain gs://. The backups will use the destination [gcsBucket]/SERVERNAME")
 	createCmd.MarkFlagRequired("bucket")
 	createCmd.Flags().BoolVar(&force, "force", false, "Force a backup regardless of the current backup status.")
+	createCmd.Flags().BoolVar(&skipUpload, "skip-upload", false, "Skip uploading the backup file to GCS.")
 
 	// Parse flags.
-	createCmd.Flags().Parse([]string{"bucket", "force"})
+	createCmd.Flags().Parse([]string{"bucket", "force", "skip-upload"})
 
 	cmd.AddCommand(createCmd)
 	cmd.AddCommand(infoCmd)
@@ -91,9 +94,10 @@ func createBackup(cmd *cobra.Command, args []string) error {
 		logger.Printf("Creating backups for %v", servers)
 		// Formulate the command monitor message.
 		req := backup.CreateRequest{
-			Force:   force,
-			Bucket:  gcsBucket,
-			Servers: servers,
+			Force:      force,
+			Bucket:     gcsBucket,
+			SkipUpload: skipUpload,
+			Servers:    servers,
 		}
 		reqJson, err := json.Marshal(req)
 		if err != nil {

@@ -28,6 +28,8 @@ type CreateRequest struct {
 	// Bucket is the location to which to save the backups. These are written to
 	// $Bucket/$serverName/$serverName-backup.zip.
 	Bucket string
+	// SkipUpload skips the upload to GCS.
+	SkipUpload bool
 	// Servers is the list of servers to make backups for.
 	Servers []string
 }
@@ -55,7 +57,7 @@ func Create(ctx context.Context, req CreateRequest) error {
 
 	for _, srv := range req.Servers {
 		wg.Go(func() {
-			backedUp, err := createBackup(ctx, req.Force, srv, req.Bucket)
+			backedUp, err := createBackup(ctx, srv, req)
 			errsMu.Lock()
 			errs = append(errs, err)
 			errsMu.Unlock()
@@ -92,17 +94,17 @@ func shouldBackup(force bool, srv string) bool {
 }
 
 // createBackup creates a backup for the specific server.
-func createBackup(ctx context.Context, force bool, srv, dest string) (bool, error) {
+func createBackup(ctx context.Context, srv string, req CreateRequest) (bool, error) {
 	bucketRegex, err := regexp.Compile("gs://([^/]+)/?(.*)")
 	if err != nil {
 		return false, fmt.Errorf("failed to compile bucket regex: %v", err)
 	}
 	var match []string
-	if match = bucketRegex.FindStringSubmatch(dest); len(match) == 0 {
-		return false, fmt.Errorf("invalid destination %q: destination should not be empty and should be a valid gs:// URL", dest)
+	if match = bucketRegex.FindStringSubmatch(req.Bucket); len(match) == 0 {
+		return false, fmt.Errorf("invalid destination %q: destination should not be empty and should be a valid gs:// URL", req.Bucket)
 	}
 
-	if !shouldBackup(force, srv) {
+	if !shouldBackup(req.Force, srv) {
 		return false, nil
 	}
 	serverDir := common.ServerDirectory(srv)
@@ -136,31 +138,34 @@ func createBackup(ctx context.Context, force bool, srv, dest string) (bool, erro
 		return false, fmt.Errorf("failed to close zip file %q: %v", backupFile, err)
 	}
 
-	// First match is the name of the bucket.
-	// Second match is the destination folder.
-	objectWriter := storageClient.Bucket(match[1]).Object(filepath.Join(match[2], srv, backupName(srv))).NewWriter(ctx)
+	// Skip the upload if set.
+	if !req.SkipUpload {
+		// First match is the name of the bucket.
+		// Second match is the destination folder.
+		objectWriter := storageClient.Bucket(match[1]).Object(filepath.Join(match[2], srv, backupName(srv))).NewWriter(ctx)
 
-	// Write the zip file to the writer. We re-open the zip file for reading
-	// to ensure its contents are up to date.
-	zipFile, err = os.Open(backupFile)
-	if err != nil {
-		return false, fmt.Errorf("failed to open zip file %q: %v", backupFile, err)
-	}
-	wrote, err := io.Copy(objectWriter, zipFile)
-	if err != nil {
-		objectWriter.Close()
-		return false, fmt.Errorf("failed to copy %q zip file contents to the storage object", backupFile)
-	}
-	logger.Printf("Wrote %d bytes", wrote)
+		// Write the zip file to the writer. We re-open the zip file for reading
+		// to ensure its contents are up to date.
+		zipFile, err = os.Open(backupFile)
+		if err != nil {
+			return false, fmt.Errorf("failed to open zip file %q: %v", backupFile, err)
+		}
+		wrote, err := io.Copy(objectWriter, zipFile)
+		if err != nil {
+			objectWriter.Close()
+			return false, fmt.Errorf("failed to copy %q zip file contents to the storage object", backupFile)
+		}
+		logger.Printf("Wrote %d bytes", wrote)
 
-	// Flush the writer to Cloud Storage.
-	if err := objectWriter.Close(); err != nil {
-		return false, fmt.Errorf("failed to close GCS writer for %q: %v", backupFile, err)
-	}
+		// Flush the writer to Cloud Storage.
+		if err := objectWriter.Close(); err != nil {
+			return false, fmt.Errorf("failed to close GCS writer for %q: %v", backupFile, err)
+		}
 
-	// Clean up the backup file after uploading to ensure we don't consume too much disk space.
-	if err := os.Remove(backupFile); err != nil {
-		logger.Printf("Failed to remove temporary zip file: %v", err)
+		// Clean up the backup file after uploading to ensure we don't consume too much disk space.
+		if err := os.Remove(backupFile); err != nil {
+			logger.Printf("Failed to remove temporary zip file: %v", err)
+		}
 	}
 
 	// Notify that the backup has been created.
@@ -201,6 +206,11 @@ func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 		if file.IsDir() {
 			errs = append(errs, copyToZip(zipWriter, baseDir, filepath.Join(relativeDir, file.Name())))
 			continue // Don't add directories to the zip file.
+		}
+
+		// If the file is session.lock, ignore it.
+		if file.Name() == "session.lock" {
+			continue // Don't add the lock file to the zip file.
 		}
 
 		// Copy all non-directory files.

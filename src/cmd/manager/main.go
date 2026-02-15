@@ -183,12 +183,15 @@ func handleStatus() error {
 
 		// Unlock backups if a player is online.
 		if online > 0 {
-			logger.Debugf("Players found online for %v, enabling backups", srv)
 			common.BackupStatusesMu.Lock()
-			// This would only change if previous value is false.
-			changed = !common.BackupStatuses[srv]
-			common.BackupStatuses[srv] = true
-			common.BackupStatusesMu.Unlock()
+			if !common.BackupStatuses[srv] {
+				logger.Debugf("Players found online for %v, enabling backups", srv)
+
+				// This would only change if previous value is false.
+				changed = !common.BackupStatuses[srv]
+				common.BackupStatuses[srv] = true
+				common.BackupStatusesMu.Unlock()
+			}
 		}
 	}
 

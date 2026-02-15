@@ -223,6 +223,12 @@ func copyToZip(zipWriter *zip.Writer, baseDir, relativeDir string) error {
 		if err != nil {
 			errs = append(errs, err)
 		}
+
+		copyFileStat, err := copyFile.Stat()
+		if err != nil {
+			errs = append(errs, err)
+		}
+		logger.Debugf("[BACKUP] %s, size: %v bytes", zipLoc, copyFileStat.Size())
 		if _, err := io.Copy(zipFile, copyFile); err != nil {
 			errs = append(errs, err)
 		}

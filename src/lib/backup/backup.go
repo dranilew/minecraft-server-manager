@@ -120,6 +120,7 @@ func createBackup(ctx context.Context, srv string, req CreateRequest) (bool, err
 		return false, fmt.Errorf("failed to create zip file for server %q: %v", srv, err)
 	}
 	backupFile := zipFile.Name()
+	defer zipFile.Close()
 
 	// Let the zipfile be readable by others.
 	if err := zipFile.Chmod(0644); err != nil {
@@ -134,9 +135,6 @@ func createBackup(ctx context.Context, srv string, req CreateRequest) (bool, err
 	if err := copyToZip(zipWriter, serverDir, "world"); err != nil {
 		return false, fmt.Errorf("failed to copy world files to zip folder: %v", err)
 	}
-	if err := zipFile.Close(); err != nil {
-		return false, fmt.Errorf("failed to close zip file %q: %v", backupFile, err)
-	}
 
 	// Skip the upload if set.
 	if !req.SkipUpload {
@@ -144,12 +142,7 @@ func createBackup(ctx context.Context, srv string, req CreateRequest) (bool, err
 		// Second match is the destination folder.
 		objectWriter := storageClient.Bucket(match[1]).Object(filepath.Join(match[2], srv, backupName(srv))).NewWriter(ctx)
 
-		// Write the zip file to the writer. We re-open the zip file for reading
-		// to ensure its contents are up to date.
-		zipFile, err = os.Open(backupFile)
-		if err != nil {
-			return false, fmt.Errorf("failed to open zip file %q: %v", backupFile, err)
-		}
+		// Copy the zip file into the object writer to upload to GCS.
 		wrote, err := io.Copy(objectWriter, zipFile)
 		if err != nil {
 			objectWriter.Close()
